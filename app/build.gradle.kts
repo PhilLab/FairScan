@@ -126,7 +126,7 @@ dependencies {
     implementation(libs.litert)
     implementation(libs.litert.support)
     implementation(libs.litert.metadata)
-    implementation(libs.opencv)
+    implementation(project(":opencv-minimal"))
     implementation(libs.pdfbox) {
         // To reduce APK size
         exclude("org.bouncycastle")

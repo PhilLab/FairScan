@@ -13,6 +13,7 @@
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/evaluation" />
             <option value="$PROJECT_DIR$/imageprocessing" />
+            <option value="$PROJECT_DIR$/opencv-minimal" />
           </set>
         </option>
       </GradleProjectSettings>

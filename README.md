@@ -155,5 +155,7 @@ To build an Android App Bundle:
 ./gradlew clean check :app:bundleRelease
 ```
 
+For building the minified OpenCV, you will need NDK and CMake, which are available via the SDK Manager -> SDK Tools.
+
 ## License
 This project is licensed under the GNU GPLv3. See [LICENSE](LICENSE) for details.
