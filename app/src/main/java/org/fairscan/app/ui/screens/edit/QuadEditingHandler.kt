@@ -22,8 +22,7 @@ import org.fairscan.imageprocessing.Quad
 class QuadEditingHandler {
 
     companion object {
-        const val CORNER_RADIUS = 40f
-        const val CORNER_TOUCH_RADIUS = 90f
+        const val CORNER_RADIUS = 20f
     }
 
     fun findTouchedCorner(
@@ -43,10 +42,12 @@ class QuadEditingHandler {
         displaySize: IntSize
     ): List<Int> {
         val corners = getCornerPositions(quad, containerSize, displaySize)
-        return corners
+        val indexed = corners
             .mapIndexed { index, corner -> index to (touchPos - corner).getDistance() }
-            .filter { (_, distance) -> distance < CORNER_TOUCH_RADIUS }
             .sortedBy { (_, distance) -> distance }
+        val secondClosestDistance = indexed.getOrNull(1)?.second ?: Float.MAX_VALUE
+        return indexed
+            .filter { (_, distance) -> distance < 2 * CORNER_RADIUS || distance < secondClosestDistance / 2f }
             .map { (index, _) -> index }
     }
 

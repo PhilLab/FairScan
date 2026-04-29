@@ -77,20 +77,58 @@ class QuadCoordinateUtilsTest {
     fun screenDeltaToNormalized_convertsDeltas() {
         val displaySize = IntSize(800, 600)
 
-        // Positive delta: 80/800=0.1, 60/600=0.1
-        var result = QuadCoordinateUtils.screenDeltaToNormalized(Offset(80f, 60f), displaySize)
+        // Positive delta with explicit unscaled ratio: 80/800=0.1, 60/600=0.1
+        var result = QuadCoordinateUtils.screenDeltaToNormalized(
+            delta = Offset(80f, 60f),
+            displaySize = displaySize,
+            movementRatio = 1f
+        )
         assertThat(result.x).isCloseTo(0.1f, AssertJOffset.offset(0.001f))
         assertThat(result.y).isCloseTo(0.1f, AssertJOffset.offset(0.001f))
 
         // Zero delta
-        result = QuadCoordinateUtils.screenDeltaToNormalized(Offset(0f, 0f), displaySize)
+        result = QuadCoordinateUtils.screenDeltaToNormalized(
+            delta = Offset(0f, 0f),
+            displaySize = displaySize,
+            movementRatio = 1f
+        )
         assertThat(result.x).isEqualTo(0f)
         assertThat(result.y).isEqualTo(0f)
 
-        // Negative delta: -160/800=-0.2, -120/600=-0.2
-        result = QuadCoordinateUtils.screenDeltaToNormalized(Offset(-160f, -120f), displaySize)
+        // Negative delta with explicit unscaled ratio: -160/800=-0.2, -120/600=-0.2
+        result = QuadCoordinateUtils.screenDeltaToNormalized(
+            delta = Offset(-160f, -120f),
+            displaySize = displaySize,
+            movementRatio = 1f
+        )
         assertThat(result.x).isCloseTo(-0.2f, AssertJOffset.offset(0.001f))
         assertThat(result.y).isCloseTo(-0.2f, AssertJOffset.offset(0.001f))
+
+        // Default behavior uses the configured movement ratio.
+        result = QuadCoordinateUtils.screenDeltaToNormalized(
+            delta = Offset(80f, 60f),
+            displaySize = displaySize
+        )
+        assertThat(result.x).isCloseTo(0.0333f, AssertJOffset.offset(0.001f))
+        assertThat(result.y).isCloseTo(0.0333f, AssertJOffset.offset(0.001f))
+
+        // Scaled movement ratio: finger movement is dampened by ratio.
+        result = QuadCoordinateUtils.screenDeltaToNormalized(
+            delta = Offset(80f, 60f),
+            displaySize = displaySize,
+            movementRatio = 3f
+        )
+        assertThat(result.x).isCloseTo(0.0333f, AssertJOffset.offset(0.001f))
+        assertThat(result.y).isCloseTo(0.0333f, AssertJOffset.offset(0.001f))
+
+        // Invalid ratio falls back to unscaled behavior.
+        result = QuadCoordinateUtils.screenDeltaToNormalized(
+            delta = Offset(80f, 60f),
+            displaySize = displaySize,
+            movementRatio = 0f
+        )
+        assertThat(result.x).isCloseTo(0.1f, AssertJOffset.offset(0.001f))
+        assertThat(result.y).isCloseTo(0.1f, AssertJOffset.offset(0.001f))
     }
 
     @Test

@@ -311,7 +311,9 @@ private fun DragQuadOverlay(
                         val quad = state.editableQuad ?: return@detectDragGestures
                         state.recordDragStep(quad, dragAmount)
                         val normalizedDelta = QuadCoordinateUtils.screenDeltaToNormalized(
-                            dragAmount, displaySize
+                            dragAmount,
+                            displaySize,
+                            movementRatio = QuadCoordinateUtils.DRAG_MOVEMENT_RATIO
                         )
 
                         when {
@@ -369,7 +371,7 @@ private fun DragMagnifyingGlass(state: EditPageScreenState) {
         }
     }
 
-    if (!showLoupe.value || state.dragPosition == null || state.containerSize == null) return
+    if (!showLoupe.value || state.containerSize == null) return
 
     val bmp = state.bitmap ?: return
     val containerSize = state.containerSize!!
@@ -403,13 +405,10 @@ private fun DragMagnifyingGlass(state: EditPageScreenState) {
 
     // Keep the last known focus position so it's still valid after endDrag() resets the indices.
     if (focusPosition != null) lastKnownFocusPosition.value = focusPosition
-    // On the very first touch the drag indices are not set yet and lastKnownFocusPosition
-    // has never been populated, so fall back to dragPosition (the finger is on the handle).
-    val effectiveFocusPosition = focusPosition ?: lastKnownFocusPosition.value ?: state.dragPosition ?: return
+    val effectiveFocusPosition = focusPosition ?: lastKnownFocusPosition.value ?: return
 
     MagnifyingGlass(
         bitmap = bmp,
-        fingerPosition = state.dragPosition!!,
         focusPosition = effectiveFocusPosition,
         containerSize = containerSize,
         displaySize = displaySize,

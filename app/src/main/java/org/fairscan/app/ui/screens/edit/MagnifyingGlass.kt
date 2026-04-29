@@ -84,12 +84,11 @@ internal fun LoupeLayoutConfig<Dp>.toPx(): LoupeLayoutConfig<Float> {
  * centred around [focusPosition].
  *
  * Positioning rules:
- *  1. By default, the loupe is placed **above** the finger.
- *  2. If there is not enough room above, it moves to the **left** of the finger.
+ *  1. By default, the loupe is placed **above** the focus point.
+ *  2. If there is not enough room above, it moves to the **left** of the focus point.
  *  3. If there is not enough room on the left either, it moves to the **right**.
  *
  * @param bitmap          The full source bitmap (original image).
- * @param fingerPosition  Current finger position in screen (container) coordinates, used for loupe placement.
  * @param focusPosition   The exact point to zoom into (e.g. corner or edge midpoint) in screen coordinates.
  * @param containerSize   Size of the full-screen container.
  * @param displaySize     Size of the image as rendered (letterboxed inside the container).
@@ -97,7 +96,6 @@ internal fun LoupeLayoutConfig<Dp>.toPx(): LoupeLayoutConfig<Float> {
 @Composable
 fun MagnifyingGlass(
     bitmap: Bitmap,
-    fingerPosition: Offset,
     focusPosition: Offset,
     containerSize: IntSize,
     displaySize: IntSize,
@@ -110,7 +108,7 @@ fun MagnifyingGlass(
 
     // compute loupe centre position
     val loupeCenter = computeLoupeCenter(
-        dragPosition = fingerPosition,
+        anchorPosition = focusPosition,
         configPx = configPx,
         containerWidth = containerSize.width.toFloat(),
     )
@@ -275,12 +273,12 @@ fun MagnifyingGlass(
  * Decides where the loupe centre should be.
  *
  * Priority:
- *  1. Above the finger (centred horizontally, clamped to screen edges).
+ *  1. Above the anchor point (centred horizontally, clamped to screen edges).
  *  2. If no vertical room -> to the left.
  *  3. If no room on the left -> to the right.
  */
 internal fun computeLoupeCenter(
-    dragPosition: Offset,
+    anchorPosition: Offset,
     configPx: LoupeLayoutConfig<Float>,
     containerWidth: Float,
 ): Offset {
@@ -289,23 +287,23 @@ internal fun computeLoupeCenter(
     val screenMargin = configPx.screenMargin
 
     // Try above
-    val aboveCenterY = dragPosition.y - verticalOffset - loupeRadius
+    val aboveCenterY = anchorPosition.y - verticalOffset - loupeRadius
     if (aboveCenterY - loupeRadius >= screenMargin) {
-        // Enough room above -> place centred horizontally on the finger, clamped to screen edges
-        val cx = dragPosition.x.coerceIn(screenMargin + loupeRadius, containerWidth - screenMargin - loupeRadius)
+        // Enough room above -> place centred horizontally on the anchor, clamped to screen edges
+        val cx = anchorPosition.x.coerceIn(screenMargin + loupeRadius, containerWidth - screenMargin - loupeRadius)
         return Offset(cx, aboveCenterY)
     }
 
     // Not enough room above -> try left
-    val leftCenterX = dragPosition.x - verticalOffset - loupeRadius
+    val leftCenterX = anchorPosition.x - verticalOffset - loupeRadius
     if (leftCenterX - loupeRadius >= screenMargin) {
-        val cy = dragPosition.y.coerceIn(screenMargin + loupeRadius, Float.MAX_VALUE)
+        val cy = anchorPosition.y.coerceIn(screenMargin + loupeRadius, Float.MAX_VALUE)
         return Offset(leftCenterX, cy)
     }
 
     // Not enough room on the left -> place right
-    val rightCenterX = dragPosition.x + verticalOffset + loupeRadius
+    val rightCenterX = anchorPosition.x + verticalOffset + loupeRadius
     val cx = rightCenterX.coerceAtMost(containerWidth - screenMargin - loupeRadius)
-    val cy = dragPosition.y.coerceIn(screenMargin + loupeRadius, Float.MAX_VALUE)
+    val cy = anchorPosition.y.coerceIn(screenMargin + loupeRadius, Float.MAX_VALUE)
     return Offset(cx, cy)
 }

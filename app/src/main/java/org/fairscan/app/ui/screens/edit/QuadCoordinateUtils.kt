@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.IntSize
 import org.fairscan.imageprocessing.Point
 
 object QuadCoordinateUtils {
+    const val DRAG_MOVEMENT_RATIO = 3f
 
     fun calculateDisplaySize(
         bitmapWidth: Int,
@@ -44,10 +45,15 @@ object QuadCoordinateUtils {
         )
     }
 
-    fun screenDeltaToNormalized(delta: Offset, displaySize: IntSize): Offset {
+    fun screenDeltaToNormalized(
+        delta: Offset,
+        displaySize: IntSize,
+        movementRatio: Float = DRAG_MOVEMENT_RATIO
+    ): Offset {
+        val safeMovementRatio = if (movementRatio > 0f) movementRatio else 1f
         return Offset(
-            x = delta.x / displaySize.width,
-            y = delta.y / displaySize.height
+            x = delta.x / safeMovementRatio / displaySize.width,
+            y = delta.y / safeMovementRatio / displaySize.height
         )
     }
 
