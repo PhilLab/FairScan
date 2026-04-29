@@ -22,6 +22,10 @@ import org.junit.Test
 
 class EditPageScreenStateTest {
 
+    companion object {
+        private const val wiggleThresholdPx = 8f
+    }
+
     private val testQuad = Quad(
         topLeft = Point(0.1, 0.1),
         topRight = Point(0.9, 0.1),
@@ -210,6 +214,63 @@ class EditPageScreenStateTest {
 
         // touchDownCornerIndex is owned by onTouchUp(), not endDrag().
         assertThat(state.touchDownCornerIndex).isEqualTo(2)
+    }
+
+    @Test
+    fun rollbackLastDragStepIfLikelyLiftWiggle_revertsRecentSmallStep() {
+        val state = EditPageScreenState()
+        state.updateQuad(testQuad)
+        state.startCornerDrag(0)
+
+        state.recordDragStep(testQuad, Offset(3f, 2f), eventTimeMs = 1_000)
+        state.updateQuad(updatedQuad)
+
+        state.rollbackLastDragStepIfLikelyLiftWiggle(wiggleThresholdPx, nowMs = 1_030)
+
+        assertThat(state.editableQuad).isEqualTo(testQuad)
+    }
+
+    @Test
+    fun rollbackLastDragStepIfLikelyLiftWiggle_keepsLargeStep() {
+        val state = EditPageScreenState()
+        state.updateQuad(testQuad)
+        state.startCornerDrag(0)
+
+        state.recordDragStep(testQuad, Offset(20f, 0f), eventTimeMs = 1_000)
+        state.updateQuad(updatedQuad)
+
+        state.rollbackLastDragStepIfLikelyLiftWiggle(wiggleThresholdPx, nowMs = 1_030)
+
+        assertThat(state.editableQuad).isEqualTo(updatedQuad)
+    }
+
+    @Test
+    fun rollbackLastDragStepIfLikelyLiftWiggle_keepsOldSmallStep() {
+        val state = EditPageScreenState()
+        state.updateQuad(testQuad)
+        state.startCornerDrag(0)
+
+        state.recordDragStep(testQuad, Offset(3f, 2f), eventTimeMs = 1_000)
+        state.updateQuad(updatedQuad)
+
+        state.rollbackLastDragStepIfLikelyLiftWiggle(wiggleThresholdPx, nowMs = 1_200)
+
+        assertThat(state.editableQuad).isEqualTo(updatedQuad)
+    }
+
+    @Test
+    fun endDrag_clearsLastDragStepTracking() {
+        val state = EditPageScreenState()
+        state.updateQuad(testQuad)
+        state.startCornerDrag(0)
+
+        state.recordDragStep(testQuad, Offset(3f, 2f), eventTimeMs = 1_000)
+        state.updateQuad(updatedQuad)
+        state.endDrag()
+
+        state.rollbackLastDragStepIfLikelyLiftWiggle(wiggleThresholdPx, nowMs = 1_010)
+
+        assertThat(state.editableQuad).isEqualTo(updatedQuad)
     }
 
     // ── full interaction cycles ───────────────────────────────────────────────

@@ -19,10 +19,16 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import org.fairscan.imageprocessing.Quad
 
 class EditPageScreenState {
+    companion object {
+        val LIFT_WIGGLE_MAX_DISTANCE = 8.dp
+        const val LIFT_WIGGLE_WINDOW_MS = 70L
+    }
+
     var bitmap by mutableStateOf<android.graphics.Bitmap?>(null)
     var containerSize by mutableStateOf<IntSize?>(null)
     var editableQuad by mutableStateOf<Quad?>(null)
@@ -38,6 +44,9 @@ class EditPageScreenState {
     var touchDownCornerIndex by mutableIntStateOf(-1)
 
     private var quadBeforeDrag: Quad? = null
+    private var quadBeforeLastDragStep: Quad? = null
+    private var lastDragStepDistancePx: Float = Float.MAX_VALUE
+    private var lastDragStepAtMs: Long = 0L
     private var initialQuad: Quad? = null
 
     fun updateQuad(newQuad: Quad) {
@@ -47,20 +56,46 @@ class EditPageScreenState {
     fun startCornerDrag(cornerIndex: Int) {
         quadBeforeDrag = editableQuad
         draggedCornerIndex = cornerIndex
+        clearLastDragStep()
+    }
+
+    fun recordDragStep(previousQuad: Quad, dragAmount: Offset, eventTimeMs: Long = System.currentTimeMillis()) {
+        quadBeforeLastDragStep = previousQuad
+        lastDragStepDistancePx = dragAmount.getDistance()
+        lastDragStepAtMs = eventTimeMs
+    }
+
+    fun rollbackLastDragStepIfLikelyLiftWiggle(
+        maxDistancePx: Float,
+        nowMs: Long = System.currentTimeMillis()
+    ) {
+        if (quadBeforeLastDragStep == null) return
+        val isRecent = nowMs - lastDragStepAtMs <= LIFT_WIGGLE_WINDOW_MS
+        val isSmall = lastDragStepDistancePx <= maxDistancePx
+        if (isRecent && isSmall) {
+            editableQuad = quadBeforeLastDragStep
+        }
     }
 
     fun endDrag() {
         quadBeforeDrag = null
+        clearLastDragStep()
         draggedCornerIndex = -1
         // dragPosition is intentionally kept so the loupe can still render
         // during its 1-second fade-out after the finger is lifted.
     }
 
+    private fun clearLastDragStep() {
+        quadBeforeLastDragStep = null
+        lastDragStepDistancePx = Float.MAX_VALUE
+        lastDragStepAtMs = 0L
+    }
+
     /**
      * Called as soon as the finger touches a drag handle (before touch-slop),
      * so the loupe is shown immediately.
-     * [cornerIndex] / [edgeIndex] are the handle indices found at the exact
-     * touch position; they are stored so that [onDragStart] can use them even
+     * [cornerIndex] is the handle index found at the exact
+     * touch position; it is stored so that drag start handling can use it even
      * if the slop-adjusted position drifts outside the hit-test radius.
      */
     fun onTouchDown(position: Offset, cornerIndex: Int = -1) {

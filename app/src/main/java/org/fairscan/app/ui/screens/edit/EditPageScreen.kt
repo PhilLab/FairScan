@@ -53,6 +53,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -266,6 +267,9 @@ private fun DragQuadOverlay(
 
     val containerSize = state.containerSize!!
     val displaySize = QuadCoordinateUtils.calculateDisplaySize(bmp.width, bmp.height, containerSize)
+    val liftWiggleThresholdPx = with(LocalDensity.current) {
+        EditPageScreenState.LIFT_WIGGLE_MAX_DISTANCE.toPx()
+    }
 
     QuadOverlay(
         quad = state.editableQuad!!,
@@ -290,13 +294,22 @@ private fun DragQuadOverlay(
                             state.startCornerDrag(cornerIndex)
                         }
                     },
-                    onDragEnd = { state.endDrag(); state.onTouchUp() },
-                    onDragCancel = { state.endDrag(); state.onTouchUp() },
+                    onDragEnd = {
+                        state.rollbackLastDragStepIfLikelyLiftWiggle(liftWiggleThresholdPx)
+                        state.endDrag()
+                        state.onTouchUp()
+                    },
+                    onDragCancel = {
+                        state.rollbackLastDragStepIfLikelyLiftWiggle(liftWiggleThresholdPx)
+                        state.endDrag()
+                        state.onTouchUp()
+                    },
                     onDrag = { change, dragAmount ->
                         // change.consume() is intentionally omitted: detectDragGestures
                         // already calls it.consume() internally after this callback returns.
                         state.dragPosition = change.position
                         val quad = state.editableQuad ?: return@detectDragGestures
+                        state.recordDragStep(quad, dragAmount)
                         val normalizedDelta = QuadCoordinateUtils.screenDeltaToNormalized(
                             dragAmount, displaySize
                         )
