@@ -19,15 +19,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.IntSize
 import org.fairscan.imageprocessing.Point
 import org.fairscan.imageprocessing.Quad
 import org.fairscan.imageprocessing.scaledTo
-import kotlin.math.atan2
 
 @Composable
 fun QuadOverlay(
@@ -74,37 +70,6 @@ fun QuadOverlay(
             )
         }
 
-        // Draw edge handles
-        drawEdgeHandles(corners, handleColor)
-    }
-}
-
-private fun DrawScope.drawEdgeHandles(
-    corners: List<Offset>,
-    handleColor: androidx.compose.ui.graphics.Color
-) {
-    for (i in 0 until 4) {
-        val from = corners[i]
-        val to = corners[(i + 1) % 4]
-        val midpoint = Offset((from.x + to.x) / 2, (from.y + to.y) / 2)
-
-        val edgeAngle = atan2(
-            (to.y - from.y).toDouble(),
-            (to.x - from.x).toDouble()
-        ) * 180 / Math.PI
-
-        rotate(degrees = edgeAngle.toFloat(), pivot = midpoint) {
-            val cornerRadius = QuadEditingHandler.EDGE_HANDLE_SIZE.height / 2
-            drawRoundRect(
-                color = handleColor,
-                topLeft = Offset(
-                    midpoint.x - QuadEditingHandler.EDGE_HANDLE_SIZE.width / 2,
-                    midpoint.y - QuadEditingHandler.EDGE_HANDLE_SIZE.height / 2
-                ),
-                size = QuadEditingHandler.EDGE_HANDLE_SIZE,
-                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
-            )
-        }
     }
 }
 

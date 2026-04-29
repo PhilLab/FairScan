@@ -44,12 +44,10 @@ class EditPageScreenStateTest {
         assertThat(state.containerSize).isNull()
         assertThat(state.editableQuad).isNull()
         assertThat(state.draggedCornerIndex).isEqualTo(-1)
-        assertThat(state.draggedEdgeIndex).isEqualTo(-1)
         assertThat(state.isDragging()).isFalse()
         // Touch / loupe state
         assertThat(state.isTouching).isFalse()
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
         assertThat(state.dragPosition).isNull()
     }
 
@@ -65,61 +63,32 @@ class EditPageScreenStateTest {
     }
 
     @Test
-    fun cornerAndEdgeDragging_managesStateCorrectly() {
+    fun cornerDragging_managesStateCorrectly() {
         val state = EditPageScreenState()
 
         // Corner drag starts correctly
         for (i in 0 until 4) {
             state.startCornerDrag(i)
             assertThat(state.draggedCornerIndex).isEqualTo(i)
-            assertThat(state.draggedEdgeIndex).isEqualTo(-1)
             assertThat(state.isDragging()).isTrue()
         }
-
-        // Edge drag starts correctly and resets corner
-        for (i in 0 until 4) {
-            state.startEdgeDrag(i)
-            assertThat(state.draggedEdgeIndex).isEqualTo(i)
-            assertThat(state.draggedCornerIndex).isEqualTo(-1)
-            assertThat(state.isDragging()).isTrue()
-        }
-
-        // Switching from corner to edge resets corner
-        state.startCornerDrag(0)
-        state.startEdgeDrag(2)
-        assertThat(state.draggedCornerIndex).isEqualTo(-1)
-        assertThat(state.draggedEdgeIndex).isEqualTo(2)
-
-        // Switching from edge to corner resets edge
-        state.startEdgeDrag(2)
-        state.startCornerDrag(0)
-        assertThat(state.draggedEdgeIndex).isEqualTo(-1)
-        assertThat(state.draggedCornerIndex).isEqualTo(0)
 
         // End drag resets all
         state.startCornerDrag(2)
         state.endDrag()
         assertThat(state.draggedCornerIndex).isEqualTo(-1)
-        assertThat(state.draggedEdgeIndex).isEqualTo(-1)
-        assertThat(state.isDragging()).isFalse()
-
-        // End drag after edge drag
-        state.startEdgeDrag(1)
-        state.endDrag()
         assertThat(state.isDragging()).isFalse()
 
         // End drag when not dragging stays in non-dragging state
         state.endDrag()
         assertThat(state.isDragging()).isFalse()
         assertThat(state.draggedCornerIndex).isEqualTo(-1)
-        assertThat(state.draggedEdgeIndex).isEqualTo(-1)
     }
 
     @Test
     fun fullDragCycle_preservesQuadAfterDragEnds() {
         val state = EditPageScreenState()
 
-        // Corner drag cycle
         assertThat(state.isDragging()).isFalse()
         state.startCornerDrag(1)
         assertThat(state.isDragging()).isTrue()
@@ -129,15 +98,6 @@ class EditPageScreenStateTest {
         state.endDrag()
         assertThat(state.isDragging()).isFalse()
         assertThat(state.editableQuad).isEqualTo(updatedQuad)
-
-        // Edge drag cycle
-        state.startEdgeDrag(3)
-        assertThat(state.isDragging()).isTrue()
-        state.updateQuad(testQuad)
-        assertThat(state.editableQuad).isEqualTo(testQuad)
-        state.endDrag()
-        assertThat(state.isDragging()).isFalse()
-        assertThat(state.editableQuad).isEqualTo(testQuad)
     }
 
     // ── onTouchDown ──────────────────────────────────────────────────────────
@@ -152,7 +112,6 @@ class EditPageScreenStateTest {
         assertThat(state.isTouching).isTrue()
         assertThat(state.dragPosition).isEqualTo(pos)
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
     }
 
     @Test
@@ -163,18 +122,17 @@ class EditPageScreenStateTest {
 
         assertThat(state.isTouching).isTrue()
         assertThat(state.touchDownCornerIndex).isEqualTo(2)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
     }
 
     @Test
     fun onTouchDown_withEdgeIndex_storesEdgeIndex() {
+        // Edge index no longer exists; onTouchDown with no corner index leaves touchDownCornerIndex as -1.
         val state = EditPageScreenState()
 
-        state.onTouchDown(Offset(50f, 50f), edgeIndex = 3)
+        state.onTouchDown(Offset(50f, 50f))
 
         assertThat(state.isTouching).isTrue()
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(3)
     }
 
     @Test
@@ -199,7 +157,6 @@ class EditPageScreenStateTest {
 
         assertThat(state.isTouching).isFalse()
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
     }
 
     @Test
@@ -222,7 +179,6 @@ class EditPageScreenStateTest {
 
         assertThat(state.isTouching).isFalse()
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
     }
 
     // ── endDrag ──────────────────────────────────────────────────────────────
@@ -241,7 +197,6 @@ class EditPageScreenStateTest {
         // dragPosition must NOT be nulled so the loupe stays visible during the 1 s fade-out.
         assertThat(state.dragPosition).isEqualTo(pos)
         assertThat(state.draggedCornerIndex).isEqualTo(-1)
-        assertThat(state.draggedEdgeIndex).isEqualTo(-1)
     }
 
     @Test
@@ -255,7 +210,6 @@ class EditPageScreenStateTest {
 
         // touchDownCornerIndex is owned by onTouchUp(), not endDrag().
         assertThat(state.touchDownCornerIndex).isEqualTo(2)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
     }
 
     // ── full interaction cycles ───────────────────────────────────────────────
@@ -273,7 +227,6 @@ class EditPageScreenStateTest {
 
         assertThat(state.isTouching).isFalse()
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
         assertThat(state.dragPosition).isEqualTo(pos)   // preserved for loupe fade-out
         assertThat(state.isDragging()).isFalse()
     }
@@ -299,7 +252,6 @@ class EditPageScreenStateTest {
         assertThat(state.isTouching).isFalse()
         assertThat(state.draggedCornerIndex).isEqualTo(-1)
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
         assertThat(state.dragPosition).isEqualTo(pos)   // preserved for loupe fade-out
         assertThat(state.editableQuad).isEqualTo(updatedQuad)
         assertThat(state.history.canUndo).isTrue()
@@ -307,22 +259,21 @@ class EditPageScreenStateTest {
 
     @Test
     fun dragCycle_edge_leavesStateConsistent() {
+        // Edge dragging is no longer supported; this test verifies that a touch
+        // without a valid corner index simply does not trigger a drag.
         val state = EditPageScreenState()
         state.setInitialQuad(testQuad)
         val pos = Offset(150f, 80f)
 
-        state.onTouchDown(pos, edgeIndex = 0)
-        state.startEdgeDrag(0)
-        assertThat(state.isDragging()).isTrue()
-        assertThat(state.touchDownEdgeIndex).isEqualTo(0)
+        state.onTouchDown(pos)
+        assertThat(state.isDragging()).isFalse()
+        assertThat(state.touchDownCornerIndex).isEqualTo(-1)
 
-        state.updateQuad(updatedQuad)
-        state.endDrag()
         state.onTouchUp()
 
         assertThat(state.isDragging()).isFalse()
         assertThat(state.isTouching).isFalse()
-        assertThat(state.touchDownEdgeIndex).isEqualTo(-1)
+        assertThat(state.touchDownCornerIndex).isEqualTo(-1)
         assertThat(state.dragPosition).isEqualTo(pos)
     }
 

@@ -15,7 +15,6 @@
 package org.fairscan.app.ui.screens.edit
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.IntSize
 import org.fairscan.imageprocessing.Point
 import org.fairscan.imageprocessing.Quad
@@ -24,7 +23,7 @@ class QuadEditingHandler {
 
     companion object {
         const val CORNER_RADIUS = 40f
-        val EDGE_HANDLE_SIZE = Size(90f, 40f)
+        const val CORNER_TOUCH_RADIUS = 90f
     }
 
     fun findTouchedCorner(
@@ -33,23 +32,22 @@ class QuadEditingHandler {
         containerSize: IntSize,
         displaySize: IntSize
     ): Int {
-        val corners = getCornerPositions(quad, containerSize, displaySize)
-        return corners.indexOfFirst { corner ->
-            (touchPos - corner).getDistance() < CORNER_RADIUS * 1.5f
-        }
+        return findTouchedCornerCandidates(touchPos, quad, containerSize, displaySize)
+            .firstOrNull() ?: -1
     }
 
-    fun findTouchedEdge(
+    fun findTouchedCornerCandidates(
         touchPos: Offset,
         quad: Quad,
         containerSize: IntSize,
         displaySize: IntSize
-    ): Int {
+    ): List<Int> {
         val corners = getCornerPositions(quad, containerSize, displaySize)
-        val edgeMidpoints = getEdgeMidpoints(corners)
-        return edgeMidpoints.indexOfFirst { midpoint ->
-            (touchPos - midpoint).getDistance() < EDGE_HANDLE_SIZE.width
-        }
+        return corners
+            .mapIndexed { index, corner -> index to (touchPos - corner).getDistance() }
+            .filter { (_, distance) -> distance < CORNER_TOUCH_RADIUS }
+            .sortedBy { (_, distance) -> distance }
+            .map { (index, _) -> index }
     }
 
     fun updateQuadCorner(quad: Quad, cornerIndex: Int, delta: Offset): Quad {
@@ -64,30 +62,6 @@ class QuadEditingHandler {
         return if (candidate.isConvex()) candidate else quad
     }
 
-    fun updateQuadEdge(quad: Quad, edgeIndex: Int, delta: Offset): Quad {
-        val normalizedDelta = Point(delta.x.toDouble(), delta.y.toDouble())
-        val candidate = when (edgeIndex) {
-            0 -> quad.copy( // top edge
-                topLeft = clampPoint(quad.topLeft + normalizedDelta),
-                topRight = clampPoint(quad.topRight + normalizedDelta)
-            )
-            1 -> quad.copy( // right edge
-                topRight = clampPoint(quad.topRight + normalizedDelta),
-                bottomRight = clampPoint(quad.bottomRight + normalizedDelta)
-            )
-            2 -> quad.copy( // bottom edge
-                bottomRight = clampPoint(quad.bottomRight + normalizedDelta),
-                bottomLeft = clampPoint(quad.bottomLeft + normalizedDelta)
-            )
-            3 -> quad.copy( // left edge
-                bottomLeft = clampPoint(quad.bottomLeft + normalizedDelta),
-                topLeft = clampPoint(quad.topLeft + normalizedDelta)
-            )
-            else -> quad
-        }
-        return if (candidate.isConvex()) candidate else quad
-    }
-
     private fun getCornerPositions(quad: Quad, containerSize: IntSize, displaySize: IntSize): List<Offset> {
         return listOf(
             QuadCoordinateUtils.normalizedToScreen(quad.topLeft, containerSize, displaySize),
@@ -97,14 +71,6 @@ class QuadEditingHandler {
         )
     }
 
-    private fun getEdgeMidpoints(corners: List<Offset>): List<Offset> {
-        return listOf(
-            Offset((corners[0].x + corners[1].x) / 2, (corners[0].y + corners[1].y) / 2),
-            Offset((corners[1].x + corners[2].x) / 2, (corners[1].y + corners[2].y) / 2),
-            Offset((corners[2].x + corners[3].x) / 2, (corners[2].y + corners[3].y) / 2),
-            Offset((corners[3].x + corners[0].x) / 2, (corners[3].y + corners[0].y) / 2)
-        )
-    }
 
     private fun clampPoint(point: Point): Point {
         return Point(

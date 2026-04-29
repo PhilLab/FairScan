@@ -41,6 +41,20 @@ class QuadEditingHandlerTest {
         handler = QuadEditingHandler()
     }
 
+    private fun closeTopCornersQuadForTouchRadius(): Quad {
+        val radiusPx = QuadEditingHandler.CORNER_TOUCH_RADIUS
+        // Keep the two top corners comfortably inside each other's touch radius.
+        val separationPx = radiusPx * 0.8f
+        val normalizedHalfSeparation = (separationPx / displaySize.width) / 2.0
+        val centerX = 0.5
+        return Quad(
+            topLeft = Point(centerX - normalizedHalfSeparation, 0.2),
+            topRight = Point(centerX + normalizedHalfSeparation, 0.2),
+            bottomRight = Point(0.8, 0.8),
+            bottomLeft = Point(0.2, 0.8)
+        )
+    }
+
     @Test
     fun findTouchedCorner_detectsAllCornersAndMisses() {
         // All four corners should be detected
@@ -55,27 +69,74 @@ class QuadEditingHandlerTest {
         val nearTouch = Offset(topLeftScreen.x + 20f, topLeftScreen.y + 15f)
         assertThat(handler.findTouchedCorner(nearTouch, centeredQuad, containerSize, displaySize)).isEqualTo(0)
 
+        // Outside visual corner radius but inside expanded touch radius.
+        val outsideVisualButTouchable = Offset(topLeftScreen.x + 70f, topLeftScreen.y)
+        assertThat((outsideVisualButTouchable - topLeftScreen).getDistance())
+            .isGreaterThan(QuadEditingHandler.CORNER_RADIUS)
+        assertThat(handler.findTouchedCorner(outsideVisualButTouchable, centeredQuad, containerSize, displaySize))
+            .isEqualTo(0)
+
         // Far from corners should return -1
         val centerTouch = QuadCoordinateUtils.normalizedToScreen(Point(0.5, 0.5), containerSize, displaySize)
         assertThat(handler.findTouchedCorner(centerTouch, centeredQuad, containerSize, displaySize)).isEqualTo(-1)
     }
 
     @Test
-    fun findTouchedEdge_detectsAllEdgesAndMisses() {
-        // Test all four edge midpoints
-        val edgeMidpoints = listOf(
-            Point((centeredQuad.topLeft.x + centeredQuad.topRight.x) / 2, centeredQuad.topLeft.y),
-            Point(centeredQuad.topRight.x, (centeredQuad.topRight.y + centeredQuad.bottomRight.y) / 2),
-            Point((centeredQuad.bottomRight.x + centeredQuad.bottomLeft.x) / 2, centeredQuad.bottomRight.y),
-            Point(centeredQuad.topLeft.x, (centeredQuad.bottomLeft.y + centeredQuad.topLeft.y) / 2)
-        )
-        edgeMidpoints.forEachIndexed { index, midpoint ->
-            val touchPos = QuadCoordinateUtils.normalizedToScreen(midpoint, containerSize, displaySize)
-            assertThat(handler.findTouchedEdge(touchPos, centeredQuad, containerSize, displaySize)).isEqualTo(index)
-        }
+    fun findTouchedCorner_selectsClosestCornerWhenMultipleAreInTouchRadius() {
+        // Two corners close together so their touch areas overlap.
+        val closeTopCornersQuad = closeTopCornersQuadForTouchRadius()
+        val topLeftScreen = QuadCoordinateUtils.normalizedToScreen(closeTopCornersQuad.topLeft, containerSize, displaySize)
+        val topRightScreen = QuadCoordinateUtils.normalizedToScreen(closeTopCornersQuad.topRight, containerSize, displaySize)
+        val towardCornerOffset = QuadEditingHandler.CORNER_TOUCH_RADIUS * 0.2f
 
-        // Far from edges should return -1
-        assertThat(handler.findTouchedEdge(Offset(10f, 10f), centeredQuad, containerSize, displaySize)).isEqualTo(-1)
+        // Touch a bit to the left of topRight — inside both radii but closer to topRight (index 1).
+        val touchCloserToTopRight = Offset(topRightScreen.x - towardCornerOffset, topRightScreen.y)
+        assertThat(handler.findTouchedCorner(touchCloserToTopRight, closeTopCornersQuad, containerSize, displaySize))
+            .isEqualTo(1)
+
+        // Touch a bit to the right of topLeft — inside both radii but closer to topLeft (index 0).
+        val touchCloserToTopLeft = Offset(topLeftScreen.x + towardCornerOffset, topLeftScreen.y)
+        assertThat(handler.findTouchedCorner(touchCloserToTopLeft, closeTopCornersQuad, containerSize, displaySize))
+            .isEqualTo(0)
+
+        // Exact midpoint — equal distance to both; either index 0 or 1 is acceptable.
+        val midpointTouch = Offset((topLeftScreen.x + topRightScreen.x) / 2f, topLeftScreen.y)
+        assertThat(handler.findTouchedCorner(midpointTouch, closeTopCornersQuad, containerSize, displaySize))
+            .isIn(0, 1)
+    }
+
+    @Test
+    fun findTouchedCornerCandidates_returnsAllCornersInRadiusSortedByDistance() {
+        // Single corner in range: only that corner returned.
+        val topLeftScreen = QuadCoordinateUtils.normalizedToScreen(centeredQuad.topLeft, containerSize, displaySize)
+        val single = handler.findTouchedCornerCandidates(topLeftScreen, centeredQuad, containerSize, displaySize)
+        assertThat(single).containsExactly(0)
+
+        // No corner in range: empty list.
+        val farAway = QuadCoordinateUtils.normalizedToScreen(Point(0.5, 0.5), containerSize, displaySize)
+        assertThat(handler.findTouchedCornerCandidates(farAway, centeredQuad, containerSize, displaySize)).isEmpty()
+
+        // Use a quad whose top two corners are spaced relative to CORNER_TOUCH_RADIUS.
+        val closeTopCornersQuad = closeTopCornersQuadForTouchRadius()
+        val closeTL = QuadCoordinateUtils.normalizedToScreen(closeTopCornersQuad.topLeft, containerSize, displaySize)
+        val closeTR = QuadCoordinateUtils.normalizedToScreen(closeTopCornersQuad.topRight, containerSize, displaySize)
+        val towardCornerOffset = QuadEditingHandler.CORNER_TOUCH_RADIUS * 0.2f
+
+        // Touch at midpoint: both in range, order may vary — but both must be present.
+        val midpoint = Offset((closeTL.x + closeTR.x) / 2f, closeTL.y)
+        val bothCandidates = handler.findTouchedCornerCandidates(midpoint, closeTopCornersQuad, containerSize, displaySize)
+        assertThat(bothCandidates).containsExactlyInAnyOrder(0, 1)
+
+        // Touch closer to topRight (index 1): topRight must be first in the list.
+        val touchNearTR = Offset(closeTR.x - towardCornerOffset, closeTR.y)
+        val overlap = handler.findTouchedCornerCandidates(touchNearTR, closeTopCornersQuad, containerSize, displaySize)
+        assertThat(overlap.first()).isEqualTo(1)   // topRight is closest
+        assertThat(overlap).contains(0)            // topLeft also a candidate
+
+        // Touch closer to topLeft (index 0): topLeft must be first.
+        val touchNearTL = Offset(closeTL.x + towardCornerOffset, closeTL.y)
+        val overlapTL = handler.findTouchedCornerCandidates(touchNearTL, closeTopCornersQuad, containerSize, displaySize)
+        assertThat(overlapTL.first()).isEqualTo(0)
     }
 
     @Test
@@ -113,57 +174,6 @@ class QuadEditingHandlerTest {
         assertThat(result.bottomRight.y).isEqualTo(1.0)
     }
 
-    @Test
-    fun updateQuadEdge_movesBothCornersOfEdgeAndClamps() {
-        // Top edge (index 0) - moves topLeft and topRight
-        var result = handler.updateQuadEdge(centeredQuad, 0, Offset(0.0f, 0.1f))
-        assertThat(result.topLeft.y).isCloseTo(0.3, AssertJOffset.offset(0.001))
-        assertThat(result.topRight.y).isCloseTo(0.3, AssertJOffset.offset(0.001))
-        assertThat(result.bottomRight).isEqualTo(centeredQuad.bottomRight)
-        assertThat(result.bottomLeft).isEqualTo(centeredQuad.bottomLeft)
-
-        // Right edge (index 1) - moves topRight and bottomRight
-        result = handler.updateQuadEdge(centeredQuad, 1, Offset(-0.1f, 0.0f))
-        assertThat(result.topRight.x).isCloseTo(0.7, AssertJOffset.offset(0.001))
-        assertThat(result.bottomRight.x).isCloseTo(0.7, AssertJOffset.offset(0.001))
-        assertThat(result.topLeft).isEqualTo(centeredQuad.topLeft)
-        assertThat(result.bottomLeft).isEqualTo(centeredQuad.bottomLeft)
-
-        // Bottom edge (index 2) - moves bottomRight and bottomLeft
-        result = handler.updateQuadEdge(centeredQuad, 2, Offset(0.0f, -0.1f))
-        assertThat(result.bottomRight.y).isCloseTo(0.7, AssertJOffset.offset(0.001))
-        assertThat(result.bottomLeft.y).isCloseTo(0.7, AssertJOffset.offset(0.001))
-        assertThat(result.topLeft).isEqualTo(centeredQuad.topLeft)
-        assertThat(result.topRight).isEqualTo(centeredQuad.topRight)
-
-        // Left edge (index 3) - moves topLeft and bottomLeft
-        result = handler.updateQuadEdge(centeredQuad, 3, Offset(0.1f, 0.0f))
-        assertThat(result.topLeft.x).isCloseTo(0.3, AssertJOffset.offset(0.001))
-        assertThat(result.bottomLeft.x).isCloseTo(0.3, AssertJOffset.offset(0.001))
-        assertThat(result.topRight).isEqualTo(centeredQuad.topRight)
-        assertThat(result.bottomRight).isEqualTo(centeredQuad.bottomRight)
-
-        // Invalid index returns unchanged quad
-        assertThat(handler.updateQuadEdge(centeredQuad, 5, Offset(0.1f, 0.1f))).isEqualTo(centeredQuad)
-
-        // Zero delta returns unchanged quad
-        assertThat(handler.updateQuadEdge(centeredQuad, 0, Offset(0f, 0f))).isEqualTo(centeredQuad)
-    }
-
-    @Test
-    fun updateQuadEdge_clampsToImageBounds() {
-        // Clamp to min bounds
-        var result = handler.updateQuadEdge(centeredQuad, 0, Offset(-0.5f, -0.5f))
-        assertThat(result.topLeft.x).isEqualTo(0.0)
-        assertThat(result.topLeft.y).isEqualTo(0.0)
-        assertThat(result.topRight.y).isEqualTo(0.0)
-
-        // Clamp to max bounds
-        result = handler.updateQuadEdge(centeredQuad, 2, Offset(0.5f, 0.5f))
-        assertThat(result.bottomRight.x).isEqualTo(1.0)
-        assertThat(result.bottomRight.y).isEqualTo(1.0)
-        assertThat(result.bottomLeft.y).isEqualTo(1.0)
-    }
 
     // ── Convexity enforcement tests ──────────────────────────────────────
 
@@ -186,21 +196,6 @@ class QuadEditingHandlerTest {
         assertThat(result.topLeft.y).isCloseTo(0.25, AssertJOffset.offset(0.001))
     }
 
-    @Test
-    fun updateQuadEdge_rejectsConcaveResult() {
-        // Drag the top edge far down, past the bottom edge.
-        val result = handler.updateQuadEdge(centeredQuad, 0, Offset(0.0f, 0.7f))
-        // The result should still be convex, meaning the move was rejected.
-        assertThat(result).isEqualTo(centeredQuad)
-    }
-
-    @Test
-    fun updateQuadEdge_allowsConvexResult() {
-        // A small move that keeps the quad convex should be allowed.
-        val result = handler.updateQuadEdge(centeredQuad, 0, Offset(0.0f, 0.05f))
-        assertThat(result.topLeft.y).isCloseTo(0.25, AssertJOffset.offset(0.001))
-        assertThat(result.topRight.y).isCloseTo(0.25, AssertJOffset.offset(0.001))
-    }
 
     @Test
     fun updateQuadCorner_allowsFixingConcaveQuad() {
@@ -218,21 +213,6 @@ class QuadEditingHandlerTest {
         assertThat(result.topLeft.y).isCloseTo(0.2, AssertJOffset.offset(0.001))
     }
 
-    @Test
-    fun updateQuadEdge_allowsFixingConcaveQuad() {
-        // Start with a concave quad where the top edge is pushed past the bottom.
-        val concaveQuad = Quad(
-            topLeft = Point(0.2, 0.9),  // top edge below bottom edge
-            topRight = Point(0.8, 0.9),
-            bottomRight = Point(0.8, 0.8),
-            bottomLeft = Point(0.2, 0.8)
-        )
-        // Move the top edge back up to restore convexity.
-        val result = handler.updateQuadEdge(concaveQuad, 0, Offset(0.0f, -0.7f))
-        // The result should be convex and the move should be accepted.
-        assertThat(result.topLeft.y).isCloseTo(0.2, AssertJOffset.offset(0.001))
-        assertThat(result.topRight.y).isCloseTo(0.2, AssertJOffset.offset(0.001))
-    }
 
     @Test
     fun updateQuadCorner_rejectsMoveAlongEdgeThatCreatesConcavity() {

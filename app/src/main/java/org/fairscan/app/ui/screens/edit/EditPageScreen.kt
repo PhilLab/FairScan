@@ -333,15 +333,6 @@ private fun DragQuadOverlay(
 
                         if (cornerIndex >= 0) {
                             state.startCornerDrag(cornerIndex)
-                        } else {
-                            val edgeIndex = if (state.touchDownEdgeIndex >= 0) {
-                                state.touchDownEdgeIndex
-                            } else {
-                                quadHandler.findTouchedEdge(startPos, quad, containerSize, displaySize)
-                            }
-                            if (edgeIndex >= 0) {
-                                state.startEdgeDrag(edgeIndex)
-                            }
                         }
                     },
                     onDragEnd = { state.endDrag(); state.onTouchUp() },
@@ -363,13 +354,6 @@ private fun DragQuadOverlay(
                                     )
                                 )
                             }
-                            state.draggedEdgeIndex >= 0 -> {
-                                state.updateQuad(
-                                    quadHandler.updateQuadEdge(
-                                        quad, state.draggedEdgeIndex, normalizedDelta
-                                    )
-                                )
-                            }
                         }
                     }
                 )
@@ -382,9 +366,8 @@ private fun DragQuadOverlay(
                     val quad = state.editableQuad
                     if (quad != null) {
                         val cIdx = quadHandler.findTouchedCorner(down.position, quad, containerSize, displaySize)
-                        val eIdx = if (cIdx < 0) quadHandler.findTouchedEdge(down.position, quad, containerSize, displaySize) else -1
-                        if (cIdx >= 0 || eIdx >= 0) {
-                            state.onTouchDown(down.position, cIdx, eIdx)
+                        if (cIdx >= 0) {
+                            state.onTouchDown(down.position, cIdx)
                         }
                     }
                     // For a tap (no drag): waitForUpOrCancellation() sees the UP event and
@@ -427,14 +410,10 @@ private fun DragMagnifyingGlass(state: EditPageScreenState) {
     )
     val quad = state.editableQuad
 
-    // Resolve which corner/edge index to focus on.
+    // Resolve which corner index to focus on.
     // Priority: active drag > pre-drag touch-down > nothing (fade-out phase).
     val activeCornerIndex = state.draggedCornerIndex.takeIf { it >= 0 }
         ?: state.touchDownCornerIndex.takeIf { it >= 0 }
-    val activeEdgeIndex = if (activeCornerIndex == null) {
-        state.draggedEdgeIndex.takeIf { it >= 0 }
-            ?: state.touchDownEdgeIndex.takeIf { it >= 0 }
-    } else null
 
     val focusPosition = if (quad != null) {
         when {
@@ -449,22 +428,6 @@ private fun DragMagnifyingGlass(state: EditPageScreenState) {
                 corner?.let {
                     QuadCoordinateUtils.normalizedToScreen(it, containerSize, displaySize)
                 }
-            }
-            activeEdgeIndex != null -> {
-                val (p1, p2) = when (activeEdgeIndex) {
-                    0 -> quad.topLeft to quad.topRight
-                    1 -> quad.topRight to quad.bottomRight
-                    2 -> quad.bottomRight to quad.bottomLeft
-                    3 -> quad.bottomLeft to quad.topLeft
-                    else -> null to null
-                }
-                if (p1 != null && p2 != null) {
-                    val mid = Point(
-                        (p1.x + p2.x) / 2.0,
-                        (p1.y + p2.y) / 2.0
-                    )
-                    QuadCoordinateUtils.normalizedToScreen(mid, containerSize, displaySize)
-                } else null
             }
             else -> null
         }
