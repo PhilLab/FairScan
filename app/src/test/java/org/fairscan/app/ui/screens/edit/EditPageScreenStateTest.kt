@@ -254,7 +254,6 @@ class EditPageScreenStateTest {
         assertThat(state.touchDownCornerIndex).isEqualTo(-1)
         assertThat(state.dragPosition).isEqualTo(pos)   // preserved for loupe fade-out
         assertThat(state.editableQuad).isEqualTo(updatedQuad)
-        assertThat(state.history.canUndo).isTrue()
     }
 
     @Test

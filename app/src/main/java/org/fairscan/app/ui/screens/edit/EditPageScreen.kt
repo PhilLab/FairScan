@@ -24,10 +24,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -35,8 +32,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.DropdownMenuItem
@@ -75,7 +70,6 @@ import org.fairscan.app.ui.components.AppOverflowMenu
 import org.fairscan.app.ui.components.BackButton
 import org.fairscan.app.ui.components.ConfirmationDialog
 import org.fairscan.app.ui.components.MainActionButton
-import org.fairscan.app.ui.components.SecondaryActionButton
 import org.fairscan.app.ui.components.isLandscape
 import org.fairscan.app.ui.dummyNavigation
 import org.fairscan.app.ui.theme.FairScanTheme
@@ -217,11 +211,6 @@ fun EditPageScreen(
                     .align(if (isLandscape) Alignment.CenterEnd else Alignment.BottomCenter)
                     .padding(16.dp)
                     .windowInsetsPadding(WindowInsets.safeDrawing),
-                isLandscape = isLandscape,
-                canUndo = state.history.canUndo,
-                canRedo = state.history.canRedo,
-                onUndo = { state.undo() },
-                onRedo = { state.redo() },
                 onConfirm = {
                     val quad = state.editableQuad
                     if (quad != null) {
@@ -255,51 +244,17 @@ fun EditPageScreen(
 @Composable
 private fun ActionButtons(
     modifier: Modifier,
-    isLandscape: Boolean,
-    canUndo: Boolean,
-    canRedo: Boolean,
-    onUndo: () -> Unit,
-    onRedo: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val undo: @Composable () -> Unit = {
-        SecondaryActionButton(Icons.AutoMirrored.Filled.Undo,
-            stringResource(R.string.undo),
-            onUndo,
-            enabled = canUndo)
-    }
-    val redo: @Composable () -> Unit = {
-        SecondaryActionButton(Icons.AutoMirrored.Filled.Redo,
-            stringResource(R.string.redo),
-            onRedo,
-            enabled = canRedo)
-    }
-    val confirm: @Composable () -> Unit = {
-        MainActionButton(onConfirm,
-            stringResource(R.string.confirm),
-            Icons.Filled.Check,
-            iconDescription = stringResource(R.string.confirm))
-    }
-
-    if (isLandscape) {
-        Column(
-            modifier = modifier,
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { undo(); redo() }
-            confirm()
-        }
-    } else {
-        Row(
-            modifier = modifier,
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            undo(); redo(); confirm()
-        }
-    }
+    MainActionButton(
+        onClick = onConfirm,
+        text = stringResource(R.string.confirm),
+        icon = Icons.Filled.Check,
+        iconDescription = stringResource(R.string.confirm),
+        modifier = modifier
+    )
 }
+
 
 @Composable
 private fun DragQuadOverlay(

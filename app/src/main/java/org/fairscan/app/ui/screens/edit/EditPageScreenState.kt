@@ -37,7 +37,6 @@ class EditPageScreenState {
      */
     var touchDownCornerIndex by mutableIntStateOf(-1)
 
-    val history = QuadEditingHistory()
     private var quadBeforeDrag: Quad? = null
     private var initialQuad: Quad? = null
 
@@ -51,14 +50,6 @@ class EditPageScreenState {
     }
 
     fun endDrag() {
-        // Push state to history when drag ends (if quad changed)
-        quadBeforeDrag?.let { before ->
-            editableQuad?.let { after ->
-                if (before != after) {
-                    history.pushState(before)
-                }
-            }
-        }
         quadBeforeDrag = null
         draggedCornerIndex = -1
         // dragPosition is intentionally kept so the loupe can still render
@@ -84,22 +75,6 @@ class EditPageScreenState {
         touchDownCornerIndex = -1
     }
 
-    fun undo() {
-        editableQuad?.let { current ->
-            history.undo(current)?.let { previous ->
-                editableQuad = previous
-            }
-        }
-    }
-
-    fun redo() {
-        editableQuad?.let { current ->
-            history.redo(current)?.let { next ->
-                editableQuad = next
-            }
-        }
-    }
-
     fun isDragging(): Boolean = draggedCornerIndex >= 0
 
     fun setInitialQuad(quad: Quad) {
@@ -108,11 +83,10 @@ class EditPageScreenState {
     }
 
     fun hasUnsavedChanges(): Boolean {
-        return editableQuad != initialQuad || history.canUndo
+        return editableQuad != initialQuad
     }
 
     fun revertToInitial() {
         editableQuad = initialQuad
-        history.clear()
     }
 }
