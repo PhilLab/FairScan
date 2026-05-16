@@ -2,10 +2,6 @@
 # =============================================================================
 # Builds a minimal OpenCV native library for Android from source.
 #
-# Only includes the modules used by FairScan: core, imgproc, imgcodecs.
-# This dramatically reduces the .so size compared to the full OpenCV SDK
-# (expected ~5-8 MB vs ~22 MB for arm64-v8a).
-#
 # The Java class bindings are extracted from the official OpenCV AAR published
 # on Maven Central (same source code, just pre-compiled to bytecode).
 #
@@ -16,8 +12,13 @@
 #   - JDK with javac (auto-detected from PATH, JAVA_HOME, Android Studio's bundled JBR,
 #     or /usr/lib/jvm; install with: sudo apt install default-jdk)
 #
+# Parameters
+#   - The OpenCV modules to include can be supplied as the first script parameter.
+#     core, java and java_bindings_generator are always appended automatically.
+#
 # Usage:
 #   ./opencv-minimal/build-native.sh
+#   ./opencv-minimal/build-native.sh "imgproc"
 #
 # The Gradle build calls this automatically when outputs are missing.
 # =============================================================================
@@ -28,6 +29,9 @@ SOURCE_URL="https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}
 AAR_URL="https://repo1.maven.org/maven2/org/opencv/opencv/${OPENCV_VERSION}/opencv-${OPENCV_VERSION}.aar"
 MIN_SDK=26
 ABIS=("arm64-v8a" "armeabi-v7a" "x86_64")
+
+# Comma-separated list of OpenCV modules to build.
+OPENCV_MODULES="${1:-}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -229,8 +233,8 @@ fi
 for ABI in "${ABIS[@]}"; do
     SO_OUT="$JNILIBS_DIR/$ABI/libopencv_java4.so"
     if [ -f "$SO_OUT" ]; then
-        echo "[$ABI] already built ($(du -h "$SO_OUT" | cut -f1)) - delete to rebuild"
-        continue
+        # Rebuild, probably due to changed modules. Delete the old .so
+        rm -rf "$SO_OUT"
     fi
 
     echo ""
@@ -258,7 +262,7 @@ for ABI in "${ABIS[@]}"; do
         -DANDROID_NATIVE_API_LEVEL="$MIN_SDK" \
         -DCMAKE_BUILD_TYPE=Release \
         \
-        -DBUILD_LIST=core,imgproc,imgcodecs,java,java_bindings_generator \
+        -DBUILD_LIST="${OPENCV_MODULES},core,java,java_bindings_generator" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_FAT_JAVA_LIB=ON \
         -DBUILD_JAVA=ON \

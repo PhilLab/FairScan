@@ -43,10 +43,7 @@ are missing.
 ## First build
 
 ```bash
-# Standalone (takes ~5–10 min the first time):
-./opencv-minimal/build-native.sh
-
-# Or just build the project - Gradle triggers it automatically:
+# Just build the project - Gradle triggers it automatically:
 ./gradlew assembleDebug
 ```
 
@@ -66,10 +63,20 @@ rm -rf opencv-minimal/.build opencv-minimal/src/main/jniLibs opencv-minimal/libs
 
 ## Adding / removing modules
 
-Edit the `-DBUILD_LIST=core,imgproc,imgcodecs,java,java_bindings_generator` line in `build-native.sh`.
-If you remove `imgcodecs`, also refactor `OpenCvImageTransformations.kt` to
-use Android's `BitmapFactory` + `Utils.bitmapToMat()` instead of
-`Imgcodecs.imread()`.
+Set `openCVModulesToInclude` in `gradle.properties` (or pass `-PopenCVModulesToInclude=…` on the
+command line).  Gradle tracks this as a proper build input, so changing the value
+automatically invalidates the `buildOpenCVNative` task and triggers a rebuild.
+
+```properties
+# gradle.properties
+openCVModulesToInclude=imgproc,imgcodecs,video
+```
+
+Or on the command line:
+
+```bash
+./gradlew assembleDebug -PopenCVModulesToInclude=imgproc,imgcodecs,video
+```
 
 ## F-Droid compatibility
 
