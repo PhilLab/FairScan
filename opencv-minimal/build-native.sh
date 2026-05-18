@@ -197,7 +197,7 @@ if [ -z "$JAVAC_BIN" ]; then
     echo "         export JAVA_HOME=/path/to/jdk" >&2
     exit 1
 fi
-echo "javac      : $JAVAC_BIN"
+echo "javac from : $JAVAC_BIN"
 
 # ---------- Download OpenCV source ----------
 mkdir -p "$BUILD_ROOT"
