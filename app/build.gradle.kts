@@ -6,11 +6,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-val abiCodes = mapOf(
-    "arm64-v8a" to 0,
-    "armeabi-v7a" to -1,
-    "x86_64" to -2,
-)
+// ABI list is defined centrally in gradle.properties.
+// The version-code offset is derived from position: first ABI → 0, second → -1, ...
+val abiCodes: Map<String, Int> = (findProperty("supportedABIs") as? String ?: "")
+    .split(",")
+    .map { it.trim() }
+    .filter { it.isNotEmpty() }
+    .mapIndexed { index, abi -> abi to -index }
+    .toMap()
 
 android {
     namespace = "org.fairscan.app"

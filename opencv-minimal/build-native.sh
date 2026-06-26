@@ -13,12 +13,16 @@
 #     or /usr/lib/jvm; install with: sudo apt install default-jdk)
 #
 # Parameters
-#   - The OpenCV modules to include can be supplied as the first script parameter.
-#     core, java and java_bindings_generator are always appended automatically.
+#   $1  Comma-separated OpenCV modules to include (required, pass "" for none).
+#       core, java and java_bindings_generator are always appended automatically.
+#   $2  Comma-separated ABIs to build for (required).
+#       Android Studio passes android.injected.build.abi automatically for
+#       device-specific builds; the Gradle task forwards it here as $2.
 #
 # Usage:
-#   ./opencv-minimal/build-native.sh
-#   ./opencv-minimal/build-native.sh "imgproc"
+#   ./opencv-minimal/build-native.sh "" "arm64-v8a,armeabi-v7a,x86_64"
+#   ./opencv-minimal/build-native.sh "imgproc" "arm64-v8a"
+#   ./opencv-minimal/build-native.sh ""         "arm64-v8a,x86_64"
 #
 # The Gradle build calls this automatically when outputs are missing.
 # =============================================================================
@@ -28,10 +32,26 @@ OPENCV_VERSION="4.12.0"
 SOURCE_URL="https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.tar.gz"
 AAR_URL="https://repo1.maven.org/maven2/org/opencv/opencv/${OPENCV_VERSION}/opencv-${OPENCV_VERSION}.aar"
 MIN_SDK=26
-ABIS=("arm64-v8a" "armeabi-v7a" "x86_64")
 
 # Comma-separated list of OpenCV modules to build.
-OPENCV_MODULES="${1:-}"
+# First argument: OpenCV Modules to include - comma-separated list. Pass an empty string "" to include no extra modules.
+if [ $# -lt 1 ]; then
+    echo "ERROR: build-native.sh requires at least the modules argument." >&2
+    echo "       Pass an empty string to include no extra modules:" >&2
+    echo "         ./build-native.sh \"\"" >&2
+    echo "         ./build-native.sh \"\" \"arm64-v8a\"" >&2
+    exit 1
+fi
+OPENCV_MODULES="$1"
+
+# Second argument: ABIs to build for – comma-separated list.
+if [ $# -lt 2 ] || [ -z "$2" ]; then
+    echo "ERROR: build-native.sh requires the ABI list as the second argument." >&2
+    echo "       Example: ./build-native.sh \"imgproc\" \"arm64-v8a,x86_64\"" >&2
+    exit 1
+fi
+IFS=',' read -ra ABIS <<< "$2"
+echo "ABIs       : ${ABIS[*]}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
