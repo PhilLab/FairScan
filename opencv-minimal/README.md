@@ -53,8 +53,9 @@ and skips.  Delete `opencv-minimal/src/main/jniLibs/` or
 
 ## Updating the OpenCV version
 
-Edit the `OPENCV_VERSION` variable at the top of `build-native.sh` and
-delete the cached outputs:
+Update `openCVVersion`, `openCVSourceSha256` and `openCVAarSha256` together in
+`gradle.properties`, then delete the cached outputs and let Gradle rebuild
+(it forwards the new version to both scripts automatically):
 
 ```bash
 rm -rf opencv-minimal/.build opencv-minimal/src/main/jniLibs opencv-minimal/libs
