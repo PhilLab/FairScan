@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Builds a minimal OpenCV native library for Android from source.
+# Builds the OpenCV native library for a single Android ABI.
 #
-# The Java class bindings are extracted from the official OpenCV AAR published
-# on Maven Central (same source code, just pre-compiled to bytecode).
+# Run prepare-opencv.sh once first to download the source and extract the
+# Java class bindings JAR.
 #
 # Prerequisites:
 #   - Android NDK (auto-detected from ANDROID_NDK, ANDROID_HOME, or local.properties)
@@ -15,50 +15,44 @@
 # Parameters
 #   $1  Comma-separated OpenCV modules to include (required, pass "" for none).
 #       core, java and java_bindings_generator are always appended automatically.
-#   $2  Comma-separated ABIs to build for (required).
-#       Android Studio passes android.injected.build.abi automatically for
-#       device-specific builds; the Gradle task forwards it here as $2.
+#   $2  Single ABI to build for (required). E.g.: arm64-v8a, armeabi-v7a, x86_64
 #
 # Usage:
-#   ./opencv-minimal/build-native.sh "" "arm64-v8a,armeabi-v7a,x86_64"
+#   ./opencv-minimal/build-native.sh "" "arm64-v8a"
 #   ./opencv-minimal/build-native.sh "imgproc" "arm64-v8a"
-#   ./opencv-minimal/build-native.sh ""         "arm64-v8a,x86_64"
 #
-# The Gradle build calls this automatically when outputs are missing.
+# The Gradle build calls this once per ABI through per-ABI tasks.
 # =============================================================================
 set -Eeuo pipefail
 
 OPENCV_VERSION="4.12.0"
-SOURCE_URL="https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.tar.gz"
-AAR_URL="https://repo1.maven.org/maven2/org/opencv/opencv/${OPENCV_VERSION}/opencv-${OPENCV_VERSION}.aar"
 MIN_SDK=26
 
-# Comma-separated list of OpenCV modules to build.
-# First argument: OpenCV Modules to include - comma-separated list. Pass an empty string "" to include no extra modules.
+# $1 – OpenCV modules (required, pass "" for none).
 if [ $# -lt 1 ]; then
-    echo "ERROR: build-native.sh requires at least the modules argument." >&2
+    echo "ERROR: build-native.sh requires the modules argument as \$1." >&2
     echo "       Pass an empty string to include no extra modules:" >&2
-    echo "         ./build-native.sh \"\"" >&2
     echo "         ./build-native.sh \"\" \"arm64-v8a\"" >&2
     exit 1
 fi
 OPENCV_MODULES="$1"
 
-# Second argument: ABIs to build for – comma-separated list.
+# $2 – single target ABI (required).
 if [ $# -lt 2 ] || [ -z "$2" ]; then
-    echo "ERROR: build-native.sh requires the ABI list as the second argument." >&2
-    echo "       Example: ./build-native.sh \"imgproc\" \"arm64-v8a,x86_64\"" >&2
+    echo "ERROR: build-native.sh requires a single ABI as \$2." >&2
+    echo "       Example: ./build-native.sh \"imgproc\" \"arm64-v8a\"" >&2
     exit 1
 fi
-IFS=',' read -ra ABIS <<< "$2"
-echo "ABIs       : ${ABIS[*]}"
+ABI="$2"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_ROOT="$SCRIPT_DIR/build/opencv-native"
 SOURCE_DIR="$BUILD_ROOT/opencv-${OPENCV_VERSION}"
 JNILIBS_DIR="$SCRIPT_DIR/src/main/jniLibs"
-LIBS_DIR="$SCRIPT_DIR/libs"
+
+echo "Modules    : ${OPENCV_MODULES:-"(none)"}"
+echo "ABI        : $ABI"
 
 # --- Error reporting for scripting errors ---
 on_err() {
@@ -67,23 +61,6 @@ on_err() {
     exit "$rc"
 }
 trap on_err ERR
-
-# Download a file without progress spam; only errors are printed.
-download_file() {
-    local url="$1"
-    local out="$2"
-
-    if command -v curl >/dev/null 2>&1; then
-        curl --fail --location --silent --show-error --output "$out" "$url" && return 0
-    fi
-
-    if command -v wget >/dev/null 2>&1; then
-        wget -q -O "$out" "$url" && return 0
-    fi
-
-    echo "ERROR: failed to download $url" >&2
-    return 1
-}
 
 # ---------- Locate the Android NDK ----------
 find_ndk() {
@@ -223,141 +200,110 @@ if [ -z "$JAVAC_BIN" ]; then
 fi
 echo "javac from : $JAVAC_BIN"
 
-# ---------- Download OpenCV source ----------
-mkdir -p "$BUILD_ROOT"
+# ---------- Sanity-check that prepare-opencv.sh has already been run ----------
 if [ ! -d "$SOURCE_DIR" ]; then
-    TARBALL="$BUILD_ROOT/${OPENCV_VERSION}.tar.gz"
-    if [ ! -f "$TARBALL" ]; then
-        echo "Downloading OpenCV ${OPENCV_VERSION} source ..."
-        download_file "$SOURCE_URL" "$TARBALL"
-    fi
-    echo "Extracting ..."
-    tar xf "$TARBALL" -C "$BUILD_ROOT"
+    echo "ERROR: OpenCV source not found at $SOURCE_DIR" >&2
+    echo "       Run prepare-opencv.sh first (or let Gradle call it via prepareOpenCV)." >&2
+    exit 1
 fi
 
-# ---------- Extract Java classes from official AAR ----------
-if [ ! -f "$LIBS_DIR/opencv-classes.jar" ]; then
-    AAR_FILE="$BUILD_ROOT/opencv-${OPENCV_VERSION}.aar"
-    if [ ! -f "$AAR_FILE" ]; then
-        echo "Downloading official OpenCV ${OPENCV_VERSION} AAR (for Java class bindings) ..."
-        download_file "$AAR_URL" "$AAR_FILE"
-    fi
-    echo "Extracting ..."
-    mkdir -p "$LIBS_DIR" "$BUILD_ROOT/aar-extract"
-    unzip -o -q "$AAR_FILE" classes.jar -d "$BUILD_ROOT/aar-extract"
-    mv "$BUILD_ROOT/aar-extract/classes.jar" "$LIBS_DIR/opencv-classes.jar"
-    echo "Java classes : $(du -h "$LIBS_DIR/opencv-classes.jar" | cut -f1)"
-fi
-
-# ---------- Build native library for each ABI ----------
-for ABI in "${ABIS[@]}"; do
-    SO_OUT="$JNILIBS_DIR/$ABI/libopencv_java4.so"
-    if [ -f "$SO_OUT" ]; then
-        # Rebuild, probably due to changed modules. Delete the old .so
-        rm -rf "$SO_OUT"
-    fi
-
-    echo ""
-    echo "========================================"
-    echo " Building OpenCV $OPENCV_VERSION for $ABI"
-    echo "========================================"
-
-    BUILD_DIR="$BUILD_ROOT/build-$ABI"
-
-    # Delete the entire build directory to guarantee a clean cmake configure.
-    # (Deleting only CMakeCache.txt leaves stale state in CMakeFiles/ that
-    # cmake 4.x may restore, causing detection results to be wrong.)
-    # The static-lib .o files live inside CMakeFiles/ too, so this forces a
-    # full rebuild - acceptable because outputs are cached in jniLibs/ after
-    # the first successful build.
-    echo "Cleaning build dir for fresh cmake configure ..."
-    rm -rf "$BUILD_DIR"
-    mkdir -p "$BUILD_DIR"
-
-    CMAKE_LOG="$BUILD_DIR/cmake-configure.log"
-
-    cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" \
-        -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
-        -DANDROID_ABI="$ABI" \
-        -DANDROID_NATIVE_API_LEVEL="$MIN_SDK" \
-        -DCMAKE_BUILD_TYPE=Release \
-        \
-        -DBUILD_LIST="${OPENCV_MODULES},core,java,java_bindings_generator" \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DBUILD_FAT_JAVA_LIB=ON \
-        -DBUILD_JAVA=ON \
-        \
-        ${JAVAC_BIN:+-DANDROID_JAVAC="$JAVAC_BIN"} \
-        -DJava_FOUND=TRUE \
-        -DANDROID_BUILD_BASE_DIR="$BUILD_DIR/opencv_android" \
-        -DANDROID_TMP_INSTALL_BASE_DIR="$BUILD_DIR/opencv_android_install" \
-        -DANDROID_GRADLE_JAVA_VERSION_INIT=17 \
-        -DOPENCV_ANDROID_NAMESPACE_DECLARATION="namespace 'org.opencv'" \
-        \
-        -DBUILD_ANDROID_PROJECTS=OFF \
-        -DBUILD_ANDROID_EXAMPLES=OFF \
-        -DBUILD_DOCS=OFF \
-        -DBUILD_EXAMPLES=OFF \
-        -DBUILD_PERF_TESTS=OFF \
-        -DBUILD_TESTS=OFF \
-        \
-        -DWITH_OPENCL=OFF \
-        -DWITH_CUDA=OFF \
-        -DWITH_VULKAN=OFF \
-        -DWITH_PROTOBUF=OFF \
-        -DWITH_QUIRC=OFF \
-        -DWITH_TIFF=OFF \
-        -DWITH_WEBP=OFF \
-        -DWITH_OPENJPEG=OFF \
-        -DWITH_JASPER=OFF \
-        -DWITH_OPENEXR=OFF \
-        -DWITH_IPP=OFF \
-        -DWITH_ITT=OFF \
-        -DWITH_EIGEN=OFF \
-        -DWITH_LAPACK=OFF \
-        -DWITH_JPEG=ON \
-        -DWITH_PNG=ON \
-        -DBUILD_ZLIB=ON \
-        -DBUILD_PNG=ON \
-        -DBUILD_JPEG=ON \
-        2>&1 | tee "$CMAKE_LOG" | tail -30
-
-    # Show Java-related detection lines so failures are obvious
-    echo "--- Java detection summary ---"
-    grep -i "java\|jni\|ant\|python.*build\|HAVE_opencv_java\|module.*disabled\|disabled.*java" \
-         "$CMAKE_LOG" | grep -v "^--$" || true
-    echo "------------------------------"
-
-    # Build – Java compilation may fail (we only need the .so), hence || true
-    cmake --build "$BUILD_DIR" -j "$(nproc)" 2>&1 \
-        || echo "  (partial build failure - checking for .so)"
-
-    # Locate the .so
-    SO_FILE=$(find "$BUILD_DIR/lib" -name "libopencv_java4.so" 2>/dev/null | head -1)
-    [ -n "$SO_FILE" ] || SO_FILE=$(find "$BUILD_DIR" -name "libopencv_java*.so" 2>/dev/null | head -1)
-    if [ -z "$SO_FILE" ]; then
-        echo "ERROR: native library not found for $ABI" >&2
-        echo "       Check build output above for errors." >&2
-        exit 1
-    fi
-
-    mkdir -p "$JNILIBS_DIR/$ABI"
-    cp "$SO_FILE" "$SO_OUT"
-
-    # Strip debug symbols for minimum size
-    if [ -n "$STRIP_BIN" ]; then
-        "$STRIP_BIN" --strip-unneeded "$SO_OUT"
-    fi
-
-    echo "[$ABI] → $(du -h "$SO_OUT" | cut -f1)"
-done
+# ---------- Build native library ----------
+SO_OUT="$JNILIBS_DIR/$ABI/libopencv_java4.so"
 
 echo ""
 echo "========================================"
-echo " Build complete"
+echo " Building OpenCV $OPENCV_VERSION for $ABI"
 echo "========================================"
-for ABI in "${ABIS[@]}"; do
-    [ -f "$JNILIBS_DIR/$ABI/libopencv_java4.so" ] && \
-        echo "  $ABI : $(du -h "$JNILIBS_DIR/$ABI/libopencv_java4.so" | cut -f1)"
-done
-echo "  Java   : $(du -h "$LIBS_DIR/opencv-classes.jar" | cut -f1)"
+
+BUILD_DIR="$BUILD_ROOT/build-$ABI"
+
+# Delete the entire build directory to guarantee a clean cmake configure.
+# (Deleting only CMakeCache.txt leaves stale state in CMakeFiles/ that
+# cmake 4.x may restore, causing detection results to be wrong.)
+# The static-lib .o files live inside CMakeFiles/ too, so this forces a
+# full rebuild - acceptable because outputs are cached in jniLibs/ after
+# the first successful build.
+echo "Cleaning build dir for fresh cmake configure ..."
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
+
+CMAKE_LOG="$BUILD_DIR/cmake-configure.log"
+
+cmake -S "$SOURCE_DIR" -B "$BUILD_DIR" \
+    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
+    -DANDROID_ABI="$ABI" \
+    -DANDROID_NATIVE_API_LEVEL="$MIN_SDK" \
+    -DCMAKE_BUILD_TYPE=Release \
+    \
+    -DBUILD_LIST="${OPENCV_MODULES},core,java,java_bindings_generator" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DBUILD_FAT_JAVA_LIB=ON \
+    -DBUILD_JAVA=ON \
+    \
+    ${JAVAC_BIN:+-DANDROID_JAVAC="$JAVAC_BIN"} \
+    -DJava_FOUND=TRUE \
+    -DANDROID_BUILD_BASE_DIR="$BUILD_DIR/opencv_android" \
+    -DANDROID_TMP_INSTALL_BASE_DIR="$BUILD_DIR/opencv_android_install" \
+    -DANDROID_GRADLE_JAVA_VERSION_INIT=17 \
+    -DOPENCV_ANDROID_NAMESPACE_DECLARATION="namespace 'org.opencv'" \
+    \
+    -DBUILD_ANDROID_PROJECTS=OFF \
+    -DBUILD_ANDROID_EXAMPLES=OFF \
+    -DBUILD_DOCS=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_PERF_TESTS=OFF \
+    -DBUILD_TESTS=OFF \
+    \
+    -DWITH_OPENCL=OFF \
+    -DWITH_CUDA=OFF \
+    -DWITH_VULKAN=OFF \
+    -DWITH_PROTOBUF=OFF \
+    -DWITH_QUIRC=OFF \
+    -DWITH_TIFF=OFF \
+    -DWITH_WEBP=OFF \
+    -DWITH_OPENJPEG=OFF \
+    -DWITH_JASPER=OFF \
+    -DWITH_OPENEXR=OFF \
+    -DWITH_IPP=OFF \
+    -DWITH_ITT=OFF \
+    -DWITH_EIGEN=OFF \
+    -DWITH_LAPACK=OFF \
+    -DWITH_JPEG=ON \
+    -DWITH_PNG=ON \
+    -DBUILD_ZLIB=ON \
+    -DBUILD_PNG=ON \
+    -DBUILD_JPEG=ON \
+    2>&1 | tee "$CMAKE_LOG" | tail -30
+
+# Show Java-related detection lines so failures are obvious
+echo "--- Java detection summary ---"
+grep -i "java\|jni\|ant\|python.*build\|HAVE_opencv_java\|module.*disabled\|disabled.*java" \
+     "$CMAKE_LOG" | grep -v "^--$" || true
+echo "------------------------------"
+
+# Build – Java compilation may fail (we only need the .so), hence || true
+cmake --build "$BUILD_DIR" -j "$(nproc)" 2>&1 \
+    || echo "  (partial build failure - checking for .so)"
+
+# Locate the .so
+SO_FILE=$(find "$BUILD_DIR/lib" -name "libopencv_java4.so" 2>/dev/null | head -1)
+[ -n "$SO_FILE" ] || SO_FILE=$(find "$BUILD_DIR" -name "libopencv_java*.so" 2>/dev/null | head -1)
+if [ -z "$SO_FILE" ]; then
+    echo "ERROR: native library not found for $ABI" >&2
+    echo "       Check build output above for errors." >&2
+    exit 1
+fi
+
+mkdir -p "$JNILIBS_DIR/$ABI"
+cp "$SO_FILE" "$SO_OUT"
+
+# Strip debug symbols for minimum size
+if [ -n "$STRIP_BIN" ]; then
+    "$STRIP_BIN" --strip-unneeded "$SO_OUT"
+fi
+
+echo ""
+echo "========================================"
+echo " Build complete: $ABI"
+echo "========================================"
+echo "  $ABI : $(du -h "$SO_OUT" | cut -f1)"
