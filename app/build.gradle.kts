@@ -109,9 +109,8 @@ apply(from = file("download-tflite.gradle.kts"))
 
 dependencies {
 
-    implementation(project(":imageprocessing")) {
-        exclude(group = "org.openpnp", module = "opencv")
-    }
+    implementation(project(":opencv-minimal"))
+    implementation(project(":imageprocessing"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -132,7 +131,6 @@ dependencies {
     implementation(libs.litert)
     implementation(libs.litert.support)
     implementation(libs.litert.metadata)
-    implementation(project(":opencv-minimal"))
     implementation(libs.pdfbox) {
         // To reduce APK size
         exclude("org.bouncycastle")
@@ -153,6 +151,11 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+configurations.all {
+    // exclude statement should not actually be needed - just to be extra sure it doesn't sneak in via imageprocessing
+    exclude(group = "org.openpnp", module = "opencv")
 }
 
 aboutLibraries {
