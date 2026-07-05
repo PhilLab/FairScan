@@ -22,6 +22,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "FairScan"
 include(":app")
-include(":opencv-minimal")
+include(":opencv-minimal:android")
+include(":opencv-minimal:java")
 include(":imageprocessing")
 include(":evaluation")

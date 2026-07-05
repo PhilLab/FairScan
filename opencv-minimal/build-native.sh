@@ -49,7 +49,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUILD_ROOT="$SCRIPT_DIR/build/opencv-native"
 SOURCE_DIR="$BUILD_ROOT/opencv-${OPENCV_VERSION}"
-JNILIBS_DIR="$SCRIPT_DIR/src/main/jniLibs"
+JNILIBS_DIR="$SCRIPT_DIR/android/src/main/jniLibs"
 
 echo "Modules    : ${OPENCV_MODULES:-"(none)"}"
 echo "ABI        : $ABI"

@@ -13,6 +13,5 @@ kotlin {
 }
 dependencies {
     implementation(project(":imageprocessing"))
-    // Desktop/full OpenCV for JVM evaluation
-    implementation("org.openpnp:opencv:4.9.0-0")
+    implementation(project(":opencv-minimal:java"))
 }
