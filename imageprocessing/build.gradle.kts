@@ -12,7 +12,7 @@ kotlin {
     }
 }
 dependencies {
-    compileOnly("org.openpnp:opencv:4.9.0-0")
+    implementation(project(":opencv-minimal:java"))
 
     testImplementation(kotlin("test"))
     testImplementation(libs.assertj)

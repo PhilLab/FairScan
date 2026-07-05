@@ -48,7 +48,7 @@ are missing.
 ```
 
 Subsequent builds are instant because the script detects existing outputs
-and skips.  Delete `opencv-minimal/src/main/jniLibs/` or
+and skips.  Delete `opencv-minimal/android/src/main/jniLibs/` or
 `opencv-minimal/libs/` to force a rebuild.
 
 ## Updating the OpenCV version
@@ -58,8 +58,8 @@ Update `openCVVersion`, `openCVSourceSha256` and `openCVAarSha256` together in
 (it forwards the new version to both scripts automatically):
 
 ```bash
-rm -rf opencv-minimal/.build opencv-minimal/src/main/jniLibs opencv-minimal/libs
-./opencv-minimal/build-native.sh
+rm -rf opencv-minimal/build opencv-minimal/android/src/main/jniLibs opencv-minimal/libs
+./gradlew assembleDebug
 ```
 
 ## Adding / removing modules

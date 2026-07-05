@@ -109,7 +109,7 @@ apply(from = file("download-tflite.gradle.kts"))
 
 dependencies {
 
-    implementation(project(":opencv-minimal"))
+    implementation(project(":opencv-minimal:android"))
     implementation(project(":imageprocessing"))
 
     implementation(libs.androidx.core.ktx)
@@ -151,11 +151,6 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-}
-
-configurations.all {
-    // exclude statement should not actually be needed - just to be extra sure it doesn't sneak in via imageprocessing
-    exclude(group = "org.openpnp", module = "opencv")
 }
 
 aboutLibraries {
