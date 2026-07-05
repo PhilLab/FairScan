@@ -22,6 +22,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "FairScan"
 include(":app")
+include(":opencv-minimal")
 include(":imageprocessing")
 include(":evaluation")
-include(":opencv-minimal")

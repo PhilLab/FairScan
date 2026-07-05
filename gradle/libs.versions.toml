@@ -13,7 +13,6 @@ camerax = "1.6.1"
 datastore = "1.2.1"
 documentfile = "1.1.0"
 litert = "1.4.1"
-opencv_java = "4.9.0-0"
 assertj = "3.27.7"
 pdfbox = "2.0.27.0"
 zoomable = "2.11.1"
@@ -52,7 +51,6 @@ androidx-documentfile = { group = "androidx.documentfile", name = "documentfile"
 litert = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "litert" }
 litert-support = { group = "com.google.ai.edge.litert", name = "litert-support", version.ref = "litert" }
 litert-metadata = { group = "com.google.ai.edge.litert", name = "litert-metadata", version.ref = "litert" }
-opencvjava = { group="org.openpnp", name="opencv", version.ref = "opencv_java" }
 pdfbox = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfbox" }
 zoomable = { group = "net.engawapg.lib", name = "zoomable", version.ref = "zoomable" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
