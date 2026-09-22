@@ -14,6 +14,8 @@
             <option value="$PROJECT_DIR$/evaluation" />
             <option value="$PROJECT_DIR$/imageprocessing" />
             <option value="$PROJECT_DIR$/opencv-minimal" />
+            <option value="$PROJECT_DIR$/opencv-minimal/android" />
+            <option value="$PROJECT_DIR$/opencv-minimal/java" />
           </set>
         </option>
       </GradleProjectSettings>

@@ -37,19 +37,6 @@ val openCVVersion: Provider<String> = providers
     .gradleProperty("openCVVersion")
 
 /**
- * SHA-256 of the OpenCV source tarball.  Verified by prepare-opencv.sh after
- * downloading to prevent tampering via git-tag rewrites or MITM.
- */
-val openCVSourceSha256: Provider<String> = providers
-    .gradleProperty("openCVSourceSha256")
-
-/**
- * SHA-256 of the official OpenCV AAR from Maven Central.
- */
-val openCVAarSha256: Provider<String> = providers
-    .gradleProperty("openCVAarSha256")
-
-/**
  * All ABIs this project ever supports, read from `supportedABIs` in gradle.properties.
  * A Gradle task is registered for each one so Gradle always knows about every
  * possible output – even for ABIs not included in the current build.
@@ -77,29 +64,10 @@ val requestedAbis: List<String> = providers
     .get()
     .split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-// =============================================================================
-// prepareOpenCV
-//   Downloads the OpenCV source tarball and extracts opencv-classes.jar from
-//   the official AAR.  Runs once; skipped as long as the JAR output exists.
-// =============================================================================
-val prepareOpenCV = tasks.register<Exec>("prepareOpenCV") {
-    group = "build"
-    description = "Downloads OpenCV source and extracts the Java classes JAR."
-
-    workingDir = projectDir
-    inputs.file("../prepare-opencv.sh")
-    inputs.property("openCVVersion", openCVVersion)
-    inputs.property("openCVSourceSha256", openCVSourceSha256)
-    inputs.property("openCVAarSha256", openCVAarSha256)
-    outputs.file("../libs/opencv-classes.jar")
-
-    commandLine(
-        "bash", "../prepare-opencv.sh",
-        openCVVersion.get(),
-        openCVSourceSha256.get(),
-        openCVAarSha256.get(),
-    )
-}
+// prepareOpenCV is shared with :opencv-minimal:java and lives in the parent
+// project (opencv-minimal/build.gradle.kts). A child project can always see
+// its parent's already-registered tasks, so no evaluationDependsOn is needed.
+val prepareOpenCV = project(":opencv-minimal").tasks.named("prepareOpenCV")
 
 // =============================================================================
 // buildOpenCVNative_<abi>  (one task per supported ABI)
