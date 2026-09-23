@@ -1,4 +1,3 @@
-import com.android.build.api.variant.FilterConfiguration
 import java.net.URL
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
@@ -37,78 +36,40 @@ val downloadTFLiteModel = tasks.register<DownloadTFLiteModelTask>("downloadTFLit
 }
 
 plugins {
-    alias(libs.plugins.android.application)
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.aboutLibrariesAndroid)
     alias(libs.plugins.kotlin.serialization)
+    `maven-publish`
 }
 
-val abiCodes = mapOf(
-    "arm64-v8a" to 0,
-    "armeabi-v7a" to -1,
-    "x86_64" to -2,
-)
+group = "org.fairscan"
+// Appending -SNAPSHOT (rather than reusing fairscanVersionName as-is) marks this a
+// changing module, so consumers resolving it from mavenLocal always pick up a fresh
+// republish instead of trusting a stale cached artifact under the same version.
+version = "${libs.versions.fairscanVersionName.get()}-SNAPSHOT"
 
 android {
     namespace = "org.fairscan.app"
     compileSdk = 37
 
+    publishing {
+        singleVariant("release")
+    }
+
     defaultConfig {
-        applicationId = "org.fairscan.app"
         // Based on tests against virtual devices, the app works with Android 8.0 (API level 26).
         // It crashes because of LiteRT on earlier versions.
         // LiteRT documentation only states that version 1.2.0 requires Android 12:
         // https://ai.google.dev/edge/litert/android/index
         minSdk = 26
-        targetSdk = 37
-        versionCode = 96 // increment by 3 because of ABI-specific APKs
-        versionName = "2.3.0"
+        // The About screen and PDF metadata read BuildConfig.VERSION_NAME from this
+        // module. Library modules don't get a VERSION_NAME field automatically
+        // (only apps) and don't inherit it from the consuming app, so it's added
+        // explicitly here, sourced from the version catalog as single source of truth.
+        buildConfigField("String", "VERSION_NAME", "\"${libs.versions.fairscanVersionName.get()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-
-    val hasSigning = listOf(
-        "RELEASE_STORE_FILE",
-        "RELEASE_STORE_PASSWORD",
-        "RELEASE_KEY_ALIAS",
-        "RELEASE_KEY_PASSWORD"
-    ).all { project.hasProperty(it) }
-
-    signingConfigs {
-        if (hasSigning) {
-            create("release") {
-                storeFile = file(project.property("RELEASE_STORE_FILE") as String)
-                storePassword = project.property("RELEASE_STORE_PASSWORD") as String
-                keyAlias = project.property("RELEASE_KEY_ALIAS") as String
-                keyPassword = project.property("RELEASE_KEY_PASSWORD") as String
-            }
-        }
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            if (hasSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            }
-        }
-    }
-
-    // See https://developer.android.com/build/configure-apk-splits
-    val isBuildingBundle = gradle.startParameter.taskNames.any { it.lowercase().contains("bundle") }
-    splits {
-        abi {
-            // Disable split ABIs when building appBundle: https://issuetracker.google.com/issues/402800800
-            isEnable = !isBuildingBundle
-            reset()
-            include(*abiCodes.keys.toTypedArray())
-            isUniversalApk = false
-        }
     }
 
     compileOptions {
@@ -132,12 +93,6 @@ androidComponents {
             downloadTFLiteModel,
             DownloadTFLiteModelTask::outputDirectory,
         )
-        variant.outputs.forEach { output ->
-            val abi = output.filters
-                .find { it.filterType == FilterConfiguration.FilterType.ABI }
-                ?.identifier
-            output.outputFileName = "FairScan-${output.versionName.get()}-${abi}.apk"
-        }
     }
 }
 
@@ -199,14 +154,13 @@ aboutLibraries {
     }
 }
 
-// See https://developer.android.com/build/configure-apk-splits
-androidComponents {
-    onVariants { variant ->
-        variant.outputs.forEach { output ->
-            val name = output.filters.find { it.filterType == com.android.build.api.variant.FilterConfiguration.FilterType.ABI }?.identifier
-            val baseAbiCode = abiCodes[name]
-            if (baseAbiCode != null) {
-                output.versionCode.set(output.versionCode.get() + baseAbiCode)
+// components["release"] only exists after AGP finishes configuring the release variant,
+// so this publication must be registered afterEvaluate.
+afterEvaluate {
+    publishing {
+        publications {
+            register<MavenPublication>("release") {
+                from(components["release"])
             }
         }
     }

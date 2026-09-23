@@ -113,6 +113,42 @@ See an example app: [fairscan-intent-sample](https://github.com/pynicolas/fairsc
 
 ---
 
+## Experimental: Using FairScan as a library
+
+As of now, the library isn't published to a real repository, so consume it from `mavenLocal`
+until it is:
+1. Clone the FairScan repository, e.g. next to your project's code.
+2. Publish it to your local Maven repository:
+   ```
+   ./gradlew publishToMavenLocal
+   ```
+   Re-run this whenever you pull in a different FairScan commit/tag.
+3. In your project's `settings.gradle.kts`, add `mavenLocal()` as a repository (content-filtered
+   so it's only consulted for FairScan, not for every other dependency):
+   ```kotlin
+   dependencyResolutionManagement {
+       repositories {
+           mavenLocal {
+               content { includeGroup("org.fairscan") }
+           }
+       }
+   }
+   ```
+4. In your module's `build.gradle.kts`, depend on the exact version you published
+   (`fairscanVersionName` in [`gradle/libs.versions.toml`](gradle/libs.versions.toml), with a
+   `-SNAPSHOT` suffix):
+   ```kotlin
+   dependencies {
+       implementation("org.fairscan:app:2.3.0-SNAPSHOT")
+   }
+   ```
+4. Start a scan and get the resulting PDF the same way described above in
+   "[Experimental: Scan to PDF via intent](#experimental-scan-to-pdf-via-intent)".
+
+Note: this is experimental and there are no guarantees about API stability. Make sure you always pin
+the local FairScan checkout to a known version, as remote updates might introduce breaking changes.
+---
+
 ## Technical details
 
 FairScan uses:
@@ -152,7 +188,7 @@ To build an APK:
 ```
 To build an Android App Bundle:
 ```bash
-./gradlew clean check :app:bundleRelease
+./gradlew clean check :standalone:bundleRelease
 ```
 
 ## License
