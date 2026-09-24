@@ -30,10 +30,12 @@ object FairScan {
 
     // Launch with registerForActivityResult(ActivityResultContracts.StartActivityForResult()).
     // On Activity.RESULT_OK, pass the result to pdfUriFromResult to get the produced PDF's Uri.
+    @JvmStatic
     fun scanToPdfIntent(context: Context): Intent =
         Intent(context, MainActivity::class.java).setAction(ACTION_SCAN_TO_PDF)
 
     // Returns null if the user cancelled instead of producing a PDF.
+    @JvmStatic
     fun pdfUriFromResult(resultCode: Int, data: Intent?): Uri? =
         data?.data.takeIf { resultCode == Activity.RESULT_OK }
 }
