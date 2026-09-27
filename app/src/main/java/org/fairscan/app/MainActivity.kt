@@ -87,7 +87,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         initLibraries()
 
-        val appContainer = (application as FairScanApp).appContainer
+        val appContainer = AppContainerHolder.instance
+        appContainer.ensureScanningInitialized()
         val launchMode = resolveLaunchMode(intent)
 
         val sessionViewModel: SessionViewModel by viewModels {
@@ -278,8 +279,8 @@ class MainActivity : ComponentActivity() {
 
     private fun resolveLaunchMode(intent: Intent?): LaunchMode {
         return when (intent?.action) {
-            "org.fairscan.app.action.SCAN_TO_PDF" -> LaunchMode.EXTERNAL_SCAN_TO_PDF
-            "android.intent.action.GET_CONTENT" -> LaunchMode.EXTERNAL_SCAN_TO_PDF
+            FairScan.ACTION_SCAN_TO_PDF -> LaunchMode.EXTERNAL_SCAN_TO_PDF
+            Intent.ACTION_GET_CONTENT -> LaunchMode.EXTERNAL_SCAN_TO_PDF
             else -> LaunchMode.NORMAL
         }
     }

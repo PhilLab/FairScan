@@ -38,16 +38,6 @@ import org.fairscan.app.ui.screens.settings.SettingsRepository
 import org.fairscan.app.ui.screens.settings.SettingsViewModel
 import java.io.File
 
-class FairScanApp : Application() {
-    lateinit var appContainer: AppContainer
-
-    override fun onCreate() {
-        super.onCreate()
-        appContainer = AppContainer(this)
-        appContainer.cleanOrphanSessions()
-    }
-}
-
 const val THUMBNAIL_SIZE_DP = 120
 
 private val Context.dataStore by preferencesDataStore(name = "fairscan_settings")
@@ -71,7 +61,16 @@ class AppContainer(context: Context) {
     val imageLoader = AndroidImageLoader(context.contentResolver)
     val settingsRepository = SettingsRepository(context, dataStore, scope)
 
-    init {
+    private var scanningInitialized = false
+
+    // Loading the LiteRT segmentation model here is real, and occasionally failing, work - it
+    // must only run when the user is actually about to scan (MainActivity.onCreate), not
+    // whenever AppContainer is constructed. A host app embedding :app as a library constructs
+    // this at its own process start (see AppContainerInitializer), long before - if ever - the
+    // user opens the scanning UI.
+    fun ensureScanningInitialized() {
+        if (scanningInitialized) return
+        scanningInitialized = true
         scope.launch { imageSegmentationService.initialize() }
         scope.launch { ocrService.initialize() }
     }
@@ -88,19 +87,23 @@ class AppContainer(context: Context) {
     val cameraViewModelFactory = viewModelFactory { CameraViewModel(it) }
     val settingsViewModelFactory = viewModelFactory { SettingsViewModel(it) }
 
+    // Runs off the calling thread: called from AppContainerInitializer.create(), which runs
+    // synchronously on the main thread as part of a host app's own process start.
     fun cleanOrphanSessions() {
-        val sessionsRoot = sessionsRoot()
-        if (!sessionsRoot.exists()) return
+        scope.launch(Dispatchers.IO) {
+            val sessionsRoot = sessionsRoot()
+            if (!sessionsRoot.exists()) return@launch
 
-        val now = System.currentTimeMillis()
+            val now = System.currentTimeMillis()
 
-        sessionsRoot.listFiles()
-            ?.filter { it.isDirectory }
-            ?.forEach { dir ->
-                if (isOldSession(dir, now)) {
-                    dir.deleteRecursively()
+            sessionsRoot.listFiles()
+                ?.filter { it.isDirectory }
+                ?.forEach { dir ->
+                    if (isOldSession(dir, now)) {
+                        dir.deleteRecursively()
+                    }
                 }
-            }
+        }
     }
 
     fun sessionsRoot(): File = File(cacheDir, "sessions")

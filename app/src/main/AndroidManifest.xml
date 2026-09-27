@@ -14,22 +14,25 @@
     <!-- cameraX 1.6.1 depends on androidx.media3:media3-common which adds ACCESS_NETWORK_STATE -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
 
-    <application android:name=".FairScanApp">
+    <application>
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.FairScan">
-            <intent-filter>
-                <action android:name="org.fairscan.app.action.SCAN_TO_PDF" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.GET_CONTENT"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.OPENABLE"/>
-                <data android:mimeType="application/pdf"/>
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.FairScan" />
+        <!--
+        Runs AppContainerInitializer automatically at process start regardless of which
+        Application subclass the process ends up using - required once this module is embedded
+        as a library, since a host app owns android:name on <application> for itself.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="org.fairscan.app.AppContainerInitializer"
+                android:value="androidx.startup" />
+        </provider>
     </application>
 
 </manifest>

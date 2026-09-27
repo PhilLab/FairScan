@@ -142,11 +142,27 @@ until it is:
        implementation("org.fairscan:app:2.3.0-SNAPSHOT")
    }
    ```
-4. Start a scan and get the resulting PDF the same way described above in
-   "[Experimental: Scan to PDF via intent](#experimental-scan-to-pdf-via-intent)".
+5. Start a scan and get the result:
+   ```kotlin
+   val scanLauncher = registerForActivityResult(
+       ActivityResultContracts.StartActivityForResult()
+   ) { result ->
+       val pdfUri = FairScan.pdfUriFromResult(result.resultCode, result.data)
+       if (pdfUri != null) {
+           // copy the content of pdfUri immediately, FairScan deletes it later
+       }
+   }
+   scanLauncher.launch(FairScan.scanToPdfIntent(context))
+   ```
+   Use an **explicit** intent this way rather than firing `FairScan.ACTION_SCAN_TO_PDF` as an
+   implicit intent (as described above for a separately installed FairScan): `:app`'s
+   `MainActivity` has no intent-filter of its own, precisely so that embedding it doesn't turn
+   your host app's own "scan" action into a disambiguation dialog against a separately installed
+   FairScan on the same device.
 
-Note: this is experimental and there are no guarantees about API stability. Make sure you always pin
-the local FairScan checkout to a known version, as remote updates might introduce breaking changes.
+Note: this is experimental and there are no guarantees about API stability. Make sure you always
+pin the FairScan checkout to a known version, as pulling in a different commit/tag might
+introduce breaking changes.
 ---
 
 ## Technical details

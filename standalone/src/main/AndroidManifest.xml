@@ -14,15 +14,27 @@
         android:theme="@style/Theme.FairScan"
         tools:targetApi="tiramisu">
         <!--
-        The activity itself (its own theme, intent filters) is declared in the :app library
-        module; this only adds the launcher entry-point so that MainActivity becomes the app's
-        launcher icon in this installable build, without making :app itself a launcher by default.
+        The activity itself (its own theme) is declared in the :app library module; this adds
+        the entry points that only make sense for a separately installed FairScan, not for one
+        embedded as a library in a host app: the launcher icon, the SCAN_TO_PDF action a host app
+        would otherwise use to launch a separately installed FairScan, and GET_CONTENT so other
+        apps' document/photo pickers can offer "scan a document" as a source.
         -->
         <activity android:name="org.fairscan.app.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="org.fairscan.app.action.SCAN_TO_PDF" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.GET_CONTENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.OPENABLE" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
         <provider
