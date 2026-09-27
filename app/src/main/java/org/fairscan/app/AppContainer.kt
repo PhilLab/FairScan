@@ -16,6 +16,7 @@ package org.fairscan.app
 
 import android.app.Application
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Environment
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.ViewModel
@@ -42,20 +43,53 @@ const val THUMBNAIL_SIZE_DP = 120
 
 private val Context.dataStore by preferencesDataStore(name = "fairscan_settings")
 
+/**
+ * The manifest <meta-data> key that specifies the subdirectory name under filesDir/cacheDir
+ * which FairScan can use for file storage
+ */
+const val STORAGE_SUBDIR_KEY = "org.fairscan.app.STORAGE_SUBDIR"
+
+/**
+ * Resolve the FairScan storage subdirectory name from the manifest <meta-data> value, or throw if
+ * absent. An empty string is valid, meaning FairScan may use filesDir/cacheDir directly.
+ */
+internal fun resolveStorageSubdir(metaDataValue: String?): String =
+    metaDataValue ?: throw IllegalStateException(
+        "FairScan requires a <meta-data android:name=\"$STORAGE_SUBDIR_KEY\" " +
+            "android:value=\"...\" /> entry in your app's <application> manifest tag - the " +
+            "subdirectory FairScan may use under your filesDir/cacheDir, or \"\" to use them " +
+            "directly. See README.md."
+    )
+
+internal fun storageRoot(dir: File, subdir: String): File =
+    if (subdir.isEmpty()) dir else File(dir, subdir)
+
+private fun readStorageSubdirMetaData(context: Context): String? =
+    context.packageManager
+        .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+        .metaData?.getString(STORAGE_SUBDIR_KEY)
+
 class AppContainer(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val cacheDir = context.cacheDir
+
+    private val storageSubdir = resolveStorageSubdir(readStorageSubdirMetaData(context))
+
+    // mkdirs() unconditionally (a no-op when unprefixed, since filesDir/cacheDir already exist):
+    // some consumers, e.g. LogRepository, write into these roots without creating them first.
+    val filesRoot = storageRoot(context.filesDir, storageSubdir).apply { mkdirs() }
+    private val cacheDir = storageRoot(context.cacheDir, storageSubdir).apply { mkdirs() }
+
     private val dataStore = context.dataStore
-    val preparationDir = File(context.cacheDir, "pdfs")
+    val preparationDir = File(cacheDir, "pdfs")
     val ocrLanguageRepository =
-        OcrLanguageRepository(dataStore, File(context.filesDir, "tesseract/tessdata"))
+        OcrLanguageRepository(dataStore, File(filesRoot, "tesseract/tessdata"))
     val ocrService = OcrService(ocrLanguageRepository, scope)
     val fileManager = FileManager(
         preparationDir,
         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
         AndroidPdfWriter(ocrService, context.assets)
     )
-    val logRepository = LogRepository(File(context.filesDir, "logs.txt"))
+    val logRepository = LogRepository(File(filesRoot, "logs.txt"))
     val logger = FileLogger(logRepository)
     val imageSegmentationService = ImageSegmentationService(context, logger)
     val imageLoader = AndroidImageLoader(context.contentResolver)

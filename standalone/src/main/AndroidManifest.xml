@@ -14,6 +14,16 @@
         android:theme="@style/Theme.FairScan"
         tools:targetApi="tiramisu">
         <!--
+        Required by :app (see AppContainer.kt) - the subdirectory FairScan may use under this
+        app's filesDir/cacheDir, or "" to use them directly. Empty here so a separately installed
+        FairScan keeps using the exact same paths it always has, needing no migration for existing
+        installs; a host app embedding :app instead should normally use a non-empty subdirectory
+        name of its own, configured through this same manifest meta-data mechanism.
+        -->
+        <meta-data
+            android:name="org.fairscan.app.STORAGE_SUBDIR"
+            android:value="" />
+        <!--
         The activity itself (its own theme) is declared in the :app library module; this adds
         the entry points that only make sense for a separately installed FairScan, not for one
         embedded as a library in a host app: the launcher icon, the SCAN_TO_PDF action a host app
@@ -37,6 +47,8 @@
                 <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
+
+        <!-- The authorities must match the one used in FileUris.getUriForFile() calls -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="org.fairscan.app.fileprovider"

@@ -142,7 +142,25 @@ until it is:
        implementation("org.fairscan:app:2.3.0-SNAPSHOT")
    }
    ```
-5. Start a scan and get the result:
+5. Tell FairScan where it can store its files, in your own app's `AndroidManifest.xml`:
+   ```xml
+   <application>
+       ...
+       <meta-data
+           android:name="org.fairscan.app.STORAGE_SUBDIR"
+           android:value="fairscan" />
+   </application>
+   ```
+   This is required - FairScan throws immediately at startup if it's missing. The value names one
+   subdirectory FairScan creates and confines itself to under **both** your app's own `filesDir`
+   and `cacheDir` (i.e. `<filesDir>/<value>` and `<cacheDir>/<value>`, independently)
+   - `filesDir` holds persistent data (in-progress scans, OCR language data, debug logs)
+   - `cacheDir` holds transient data (PDF export staging, per-call session folders)
+     that FairScan deletes on its own after a while.
+   An empty value (`android:value=""`) has FairScan write directly into your `filesDir`/`cacheDir`
+   themselves instead of a subdirectory of each. Only do this if nothing else in your app uses
+   those directories, since FairScan's file creation and cleanup might interfere with your app.
+6. Start a scan and get the result:
    ```kotlin
    val scanLauncher = registerForActivityResult(
        ActivityResultContracts.StartActivityForResult()

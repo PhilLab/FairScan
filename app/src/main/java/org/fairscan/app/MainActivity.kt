@@ -437,11 +437,17 @@ class MainActivity : ComponentActivity() {
     private fun sendActivityResult(result: ExportResult?) {
         val pdf = result as? ExportResult.Pdf ?: return
 
-        val uri = uriForFile(pdf.file)
-        val resultIntent = Intent().apply {
-            data = uri
-            clipData = ClipData.newRawUri(null, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        // When the caller is this same app, it already has direct filesystem access.
+        // In this case, hand back a plain path instead of a content:// URI
+        val resultIntent = if (callingPackage == packageName) {
+            Intent().putExtra(FairScan.EXTRA_PDF_PATH, pdf.file.absolutePath)
+        } else {
+            val uri = uriForFile(pdf.file)
+            Intent().apply {
+                data = uri
+                clipData = ClipData.newRawUri(null, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
         }
 
         setResult(RESULT_OK, resultIntent)

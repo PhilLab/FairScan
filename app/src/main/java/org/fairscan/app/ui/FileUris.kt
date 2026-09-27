@@ -19,7 +19,13 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import java.io.File
 
+/**
+ * Fixed, FairScan-owned authority - not applicationId-derived - so it can't collide with a host
+ * app's own FileProvider. Must be kept in sync with the <provider> declaration in
+ * standalone/src/main/AndroidManifest.xml
+ */
+const val FILE_PROVIDER_AUTHORITY = "org.fairscan.app.fileprovider"
+
 fun uriForFile(context: Context, file: File): Uri {
-    val authority = "${context.packageName}.fileprovider"
-    return FileProvider.getUriForFile(context, authority, file)
+    return FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
 }

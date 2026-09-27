@@ -18,6 +18,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import java.io.File
 
 // Entry point for host apps embedding :app as a library. MainActivity has no intent-filter of
 // its own here (see AndroidManifest.xml) - only :standalone declares the SCAN_TO_PDF and
@@ -28,6 +29,11 @@ object FairScan {
 
     const val ACTION_SCAN_TO_PDF = "org.fairscan.app.action.SCAN_TO_PDF"
 
+    // Set by MainActivity.sendActivityResult instead of `data` when the caller is this same app
+    // (embedded-library case) - see that function for why. Internal: host apps should only ever
+    // go through pdfUriFromResult, which hides which transport was actually used.
+    internal const val EXTRA_PDF_PATH = "org.fairscan.app.extra.PDF_PATH"
+
     // Launch with registerForActivityResult(ActivityResultContracts.StartActivityForResult()).
     // On Activity.RESULT_OK, pass the result to pdfUriFromResult to get the produced PDF's Uri.
     @JvmStatic
@@ -36,6 +42,10 @@ object FairScan {
 
     // Returns null if the user cancelled instead of producing a PDF.
     @JvmStatic
-    fun pdfUriFromResult(resultCode: Int, data: Intent?): Uri? =
-        data?.data.takeIf { resultCode == Activity.RESULT_OK }
+    fun pdfUriFromResult(resultCode: Int, data: Intent?): Uri? {
+        if (resultCode != Activity.RESULT_OK) return null
+        val path = data?.getStringExtra(EXTRA_PDF_PATH)
+        if (path != null) return Uri.fromFile(File(path))
+        return data?.data
+    }
 }
