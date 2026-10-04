@@ -34,11 +34,28 @@ object FairScan {
     // go through pdfUriFromResult, which hides which transport was actually used.
     internal const val EXTRA_PDF_PATH = "org.fairscan.app.extra.PDF_PATH"
 
-    // Launch with registerForActivityResult(ActivityResultContracts.StartActivityForResult()).
-    // On Activity.RESULT_OK, pass the result to pdfUriFromResult to get the produced PDF's Uri.
+    // Read by MainActivity.onCreate() to decide whether its hourly cache cleanup shall run
+    internal const val EXTRA_DISABLE_AUTO_DELETION = "org.fairscan.app.extra.DISABLE_AUTO_DELETION"
+
+    /**
+     * Launch with registerForActivityResult(ActivityResultContracts.StartActivityForResult()).
+     * On Activity.RESULT_OK, pass the result to pdfUriFromResult to get the produced PDF's Uri.
+     *
+     * @param disableAutoDeletion When true (the default), FairScan's auto deletion will not run.
+     * Normally it deletes prepared PDFs older than one hour the next time its scanning screen is opened.
+     * With auto-deletion disabled, the host app becomes responsible for removing the file returned via pdfUriFromResult
+     * once it no longer needs it.
+     * Important 1: This only applies when using FairScan via this embedded library entry point.
+     * Important 2: If you change this to false, the deletion applies to ALL existing files, if old enough. If a prior
+     *              file was scanned with scanToPdfIntent(disableAutoDeletion = true), it might also get deleted.
+     *              Decide once, which setting fits your use case and stick to it.
+     */
     @JvmStatic
-    fun scanToPdfIntent(context: Context): Intent =
-        Intent(context, MainActivity::class.java).setAction(ACTION_SCAN_TO_PDF)
+    @JvmOverloads
+    fun scanToPdfIntent(context: Context, disableAutoDeletion: Boolean = true): Intent =
+        Intent(context, MainActivity::class.java)
+            .setAction(ACTION_SCAN_TO_PDF)
+            .putExtra(EXTRA_DISABLE_AUTO_DELETION, disableAutoDeletion)
 
     // Returns null if the user cancelled instead of producing a PDF.
     @JvmStatic

@@ -120,7 +120,10 @@ class MainActivity : ComponentActivity() {
         val settingsViewModel: SettingsViewModel
             by viewModels { appContainer.settingsViewModelFactory }
         lifecycleScope.launch(Dispatchers.IO) {
-            exportViewModel.cleanUpOldPreparedFiles(1000 * 3600)
+            val autoDeletionDisabled = intent.getBooleanExtra(FairScan.EXTRA_DISABLE_AUTO_DELETION, false)
+            if (!autoDeletionDisabled) {
+                exportViewModel.cleanUpOldPreparedFiles(1000 * 3600)
+            }
         }
         enableEdgeToEdge()
         setContent {
