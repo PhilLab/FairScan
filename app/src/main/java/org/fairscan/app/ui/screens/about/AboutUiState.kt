@@ -19,4 +19,5 @@ import androidx.compose.runtime.Immutable
 @Immutable
 data class AboutUiState(
     val hasLastCapturedImage: Boolean = false,
+    val showSupport: Boolean = true,
 )

@@ -40,7 +40,7 @@ class AboutViewModel(container: AppContainer, val imageRepository: ImageReposito
     private val _events = MutableSharedFlow<AboutEvent>()
     val events = _events.asSharedFlow()
 
-    private val _uiState = MutableStateFlow(AboutUiState())
+    private val _uiState = MutableStateFlow(AboutUiState(showSupport = container.showSupport))
     val uiState = _uiState.asStateFlow()
 
     fun onCopyLogsClicked() {

@@ -137,7 +137,7 @@ fun AboutContent(
                 .size(96.dp)
                 .clip(RoundedCornerShape(20.dp))
         )
-        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.fairscan_name), style = MaterialTheme.typography.headlineMedium)
         Text(
             stringResource(R.string.app_tagline),
             textAlign = TextAlign.Center,
@@ -171,9 +171,11 @@ fun AboutContent(
             )
         }
 
-        Section(title = stringResource(R.string.support)) {
-            EmailImageButton(aboutUiState, onContactWithLastImageClicked)
-            CopyLogsButton (onClick = onCopyLogs)
+        if (aboutUiState.showSupport) {
+            Section(title = stringResource(R.string.support)) {
+                EmailImageButton(aboutUiState, onContactWithLastImageClicked)
+                CopyLogsButton (onClick = onCopyLogs)
+            }
         }
 
         Section(title = stringResource(R.string.license)) {

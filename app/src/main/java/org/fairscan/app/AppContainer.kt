@@ -69,10 +69,23 @@ private fun readStorageSubdirMetaData(context: Context): String? =
         .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
         .metaData?.getString(STORAGE_SUBDIR_KEY)
 
+/**
+ * The optional manifest <meta-data> boolean key controlling whether the About screen shows the
+ * "Support" section. Defaults to true when absent.
+ */
+const val SHOW_SUPPORT_KEY = "org.fairscan.app.SHOW_SUPPORT"
+
+private fun readShowSupportMetaData(context: Context): Boolean =
+    context.packageManager
+        .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+        .metaData?.getBoolean(SHOW_SUPPORT_KEY, true) ?: true
+
 class AppContainer(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private val storageSubdir = resolveStorageSubdir(readStorageSubdirMetaData(context))
+
+    val showSupport = readShowSupportMetaData(context)
 
     // mkdirs() unconditionally (a no-op when unprefixed, since filesDir/cacheDir already exist):
     // some consumers, e.g. LogRepository, write into these roots without creating them first.

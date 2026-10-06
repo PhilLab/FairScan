@@ -160,7 +160,15 @@ until it is:
    An empty value (`android:value=""`) has FairScan write directly into your `filesDir`/`cacheDir`
    themselves instead of a subdirectory of each. Only do this if nothing else in your app uses
    those directories, since FairScan's file creation and cleanup might interfere with your app.
-6. Start a scan and get the result:
+6. Optionally, hide the "Support" section of the About screen,
+   e.g. if your users should not contact FairScan's developers:
+   ```xml
+   <meta-data
+       android:name="org.fairscan.app.SHOW_SUPPORT"
+       android:value="false" />
+   ```
+   It defaults to `true`.
+7. Start a scan and get the result:
    ```kotlin
    val scanLauncher = registerForActivityResult(
        ActivityResultContracts.StartActivityForResult()
