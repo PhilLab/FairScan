@@ -70,6 +70,7 @@ android {
         buildConfigField("String", "VERSION_NAME", "\"${libs.versions.fairscanVersionName.get()}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles("proguard-rules.pro")
     }
 
     compileOptions {

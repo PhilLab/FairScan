@@ -46,10 +46,8 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // App-specific rules come from the :app library via consumerProguardFiles
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             if (hasSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
